@@ -29,7 +29,7 @@ export interface CardFormData {
   payment_method_option_id?: string | null;
   processing_mode?: string | null;
   payer: {
-    email: string;
+    email?: string;
     identification?: { type: string; number: string };
   };
 }
