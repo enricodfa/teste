@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens (via @theme para integrar com utilities do TW4) ── */
+@theme {
+  --color-bg: #EFF1F7;
+  --color-bg-subtle: #F4F6FA;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F9FAFB;
+
+  --color-border: #E2E5EE;
+  --color-border-2: #ECEEF4;
+
+  --color-t1: #0E1117;
+  --color-t2: #374151;
+  --color-t3: #6B7280;
+  --color-t4: #9CA3AF;
+
+  --color-brand: #3B5BDB;
+  --color-brand-hover: #2F4AC8;
+  --color-brand-subtle: #EEF2FF;
+  --color-brand-text: #3451C7;
+
+  --color-green: #059669;
+  --color-green-subtle: #ECFDF5;
+  --color-green-border: #A7F3D0;
+  --color-green-text: #065F46;
+
+  --color-red: #DC2626;
+  --color-red-subtle: #FEF2F2;
+  --color-red-border: #FECACA;
+  --color-red-text: #991B1B;
+
+  --color-amber: #D97706;
+  --color-amber-subtle: #FFFBEB;
+  --color-amber-border: #FDE68A;
+  --color-amber-text: #92400E;
+}
+
+/* ─── CSS Variables legadas (para páginas existentes com inline style) ── */
+:root {
+  --sidebar-w: 240px;
+  --header-h:  60px;
+
+  --bg:          #EFF1F7;
+  --bg-subtle:   #F4F6FA;
+  --surface:     #FFFFFF;
+  --surface-2:   #F9FAFB;
+
+  --border:      #E2E5EE;
+  --border-2:    #ECEEF4;
+
+  --t1: #0E1117;
+  --t2: #374151;
+  --t3: #6B7280;
+  --t4: #9CA3AF;
+
+  --blue:        #3B5BDB;
+  --blue-hover:  #2F4AC8;
+  --blue-subtle: #EEF2FF;
+  --blue-text:   #3451C7;
+
+  --green:        #059669;
+  --green-subtle: #ECFDF5;
+  --green-border: #A7F3D0;
+  --green-text:   #065F46;
+
+  --red:          #DC2626;
+  --red-subtle:   #FEF2F2;
+  --red-border:   #FECACA;
+  --red-text:     #991B1B;
+
+  --amber:        #D97706;
+  --amber-subtle: #FFFBEB;
+  --amber-border: #FDE68A;
+  --amber-text:   #92400E;
+
+  --s0: 0 1px 2px rgba(14,17,23,0.04);
+  --s1: 0 1px 3px rgba(14,17,23,0.08), 0 1px 2px rgba(14,17,23,0.04);
+  --s2: 0 4px 12px rgba(14,17,23,0.08), 0 2px 4px rgba(14,17,23,0.04);
+
+  --r-sm: 6px;
+  --r:    8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+}
+
+/* ─── Base (dentro da layer p/ utilities do TW terem prioridade) ── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--t1);
+    font-family: var(--font-jakarta), 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono {
+    font-family: var(--font-mono), 'IBM Plex Mono', monospace;
+  }
+
+  .label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--t4);
+  }
+
+  ::-webkit-scrollbar          { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track    { background: transparent; }
+  ::-webkit-scrollbar-thumb    { background: var(--border); border-radius: 99px; }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input[type='number'] { -moz-appearance: textfield; }
+
+  ::selection { background: var(--blue-subtle); color: var(--blue-text); }
+}
+
+/* ─── Components (na layer components p/ não conflitar) ────── */
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--s0);
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border-2);
+  }
+}

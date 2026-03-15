@@ -1,0 +1,48 @@
+import * as api from './apiService';
+import { getToken } from './tokenHelper';
+
+export interface SignalSummary {
+  ticker:         string;
+  signal:         'BUY' | 'SELL' | 'HOLD';
+  currentPct:     number;
+  targetPct:      number;
+  upperThreshold: number;
+  lowerThreshold: number;
+  deviationPct:   number;
+  actionPct:      number;
+  actionValueUsd: number;
+  priceUsd:       number;
+  totalValueUsd:  number;
+  quantity:       number;
+  avgCost:        number;
+  realizedPnl:    number;
+  unrealizedPnl:  number;
+  totalPnl:       number;
+}
+
+export interface Portfolio {
+  id:             string;
+  name:           string;
+  tolerance_band: number;
+}
+
+export interface DashboardSummary {
+  portfolio:      Portfolio | null;
+  signals:        SignalSummary[];
+  totalValueUsd:  number;
+  sellCount:      number;
+  buyCount:       number;
+  assetCount:     number;
+  totalPnl:       number;
+  totalRealized:  number;
+  totalUnrealized: number;
+}
+
+/**
+ * GET /dashboard
+ * Returns portfolio summary with live prices, signals, and P&L.
+ */
+export async function getSummary(): Promise<DashboardSummary> {
+  const token = await getToken();
+  return api.get<DashboardSummary>('/dashboard', { token });
+}
