@@ -7,11 +7,12 @@ import { useDebounce } from '../hooks/useDebounce';
 import { searchAssets } from '../services/assetsService';
 import type { Asset } from '../services/assetsService';
 
+// ✅ Atualizado: inclui coingecko_id e usa o domínio correto das imagens
 const TOP_5: Asset[] = [
-  { ticker: 'BTC',  name: 'Bitcoin',  logo: 'https://assets.coingecko.com/coins/images/1/thumb/bitcoin.png' },
-  { ticker: 'ETH',  name: 'Ethereum', logo: 'https://assets.coingecko.com/coins/images/279/thumb/ethereum.png' },
-  { ticker: 'SOL',  name: 'Solana',   logo: 'https://assets.coingecko.com/coins/images/4128/thumb/solana.png' },
-  { ticker: 'USDT', name: 'Tether',   logo: 'https://assets.coingecko.com/coins/images/325/thumb/Tether.png' },
+  { ticker: 'BTC',  name: 'Bitcoin',  coingecko_id: 'bitcoin',  logo: 'https://coin-images.coingecko.com/coins/images/1/thumb/bitcoin.png' },
+  { ticker: 'ETH',  name: 'Ethereum', coingecko_id: 'ethereum', logo: 'https://coin-images.coingecko.com/coins/images/279/thumb/ethereum.png' },
+  { ticker: 'SOL',  name: 'Solana',   coingecko_id: 'solana',   logo: 'https://coin-images.coingecko.com/coins/images/4128/thumb/solana.png' },
+  { ticker: 'USDT', name: 'Tether',   coingecko_id: 'tether',   logo: 'https://coin-images.coingecko.com/coins/images/325/thumb/Tether.png' },
 ];
 
 // Injected once — gives the dropdown a crisp slide-in entrance

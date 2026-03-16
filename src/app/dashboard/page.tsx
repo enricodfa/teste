@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, Lightning } from '@phosphor-icons/react';
 import Link from 'next/link';
 import AppLayout from '@/components/layout/AppLayout';
-import { CryptoIcon } from '@/components/icons/CryptoIcons';
-import { AVAILABLE_ASSETS, formatCurrency } from '@/app/portfolio/mockData';
+import { AssetIcon } from '@/components/ui/AssetIcon';
+import { formatCurrency } from '@/app/portfolio/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSummary } from '@/services/dashboardService';
 import type { DashboardSummary, SignalSummary } from '@/services/dashboardService';
@@ -26,10 +26,6 @@ function useGreeting(firstName: string) {
   return greeting;
 }
 
-function getAssetName(ticker: string) {
-  return AVAILABLE_ASSETS.find((a) => a.ticker === ticker)?.name ?? ticker;
-}
-
 function PnlValue({ value, loading }: { value: number; loading: boolean }) {
   if (loading) return <span className="text-gray-300">—</span>;
   const color =
@@ -45,7 +41,6 @@ function PnlValue({ value, loading }: { value: number; loading: boolean }) {
   );
 }
 
-/* ── Upgrade wall shown to free users in place of signal data ── */
 function UpgradeBanner() {
   const GHOST_ROWS = [
     { ticker: 'BTC', signal: 'SELL', action: '$1,240' },
@@ -55,7 +50,6 @@ function UpgradeBanner() {
 
   return (
     <div className="relative mb-5 rounded-2xl overflow-hidden">
-      {/* Blurred ghost table */}
       <div className="pointer-events-none select-none opacity-50 blur-[5px]">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
           <div className="px-5 py-3.5 border-b border-gray-100">
@@ -69,7 +63,7 @@ function UpgradeBanner() {
           {GHOST_ROWS.map((r) => (
             <div key={r.ticker} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] px-5 py-3 items-center border-b border-gray-50 last:border-b-0">
               <div className="flex items-center gap-2.5">
-                <CryptoIcon ticker={r.ticker} size={26} />
+                <AssetIcon ticker={r.ticker} size={26} />
                 <div className="text-[13px] font-bold text-gray-900">{r.ticker}</div>
               </div>
               <div className="text-[13px] font-semibold font-mono">$—</div>
@@ -92,12 +86,8 @@ function UpgradeBanner() {
         </div>
       </div>
 
-      {/* Overlay CTA */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-2xl border border-gray-200/60 bg-gradient-to-br from-gray-900/90 via-indigo-950/85 to-gray-900/90 backdrop-blur-sm">
-        {/* Indigo glow */}
         <div className="absolute inset-0 rounded-2xl opacity-30 bg-[radial-gradient(ellipse_at_center,_rgba(99,102,241,0.4)_0%,_transparent_70%)]" />
-
-        {/* Glassmorphism inner card */}
         <div className="relative z-10 flex flex-col items-center gap-4 px-8 py-6 rounded-xl bg-white/[0.07] border border-white/10 backdrop-blur-md">
           <div className="w-11 h-11 rounded-xl bg-indigo-500/20 flex items-center justify-center ring-1 ring-indigo-400/30">
             <Lock size={20} weight="fill" className="text-indigo-300" />
@@ -124,7 +114,6 @@ function UpgradeBanner() {
   );
 }
 
-/* ── Page ────────────────────────────────────────────────────── */
 export default function DashboardPage() {
   const { user, loading: authLoading, isPremium, planStatus, planLoading } = useAuth();
   const hasPlan = planStatus === 'active';
@@ -139,21 +128,18 @@ export default function DashboardPage() {
   const firstName = fullName.split(' ')[0];
   const greeting  = useGreeting(firstName);
 
-  // Guard 1: não autenticado → /login
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace('/login');
     }
   }, [authLoading, user, router]);
 
-  // Guard 2: autenticado mas sem plano algum → /planos
   useEffect(() => {
     if (!authLoading && !planLoading && user && !hasPlan) {
       router.replace('/planos');
     }
   }, [authLoading, planLoading, user, hasPlan, router]);
 
-  // Fetch dashboard data only after auth + plan are resolved and user has a plan
   useEffect(() => {
     if (authLoading || planLoading || !user || !hasPlan) return;
     setLoading(true);
@@ -171,7 +157,6 @@ export default function DashboardPage() {
   const totalRealized   = data?.totalRealized    ?? 0;
   const totalUnrealized = data?.totalUnrealized  ?? 0;
 
-  // Evita flash de conteúdo enquanto auth/plan resolve ou redirecionamento ocorre
   if (authLoading || planLoading || !user || !hasPlan) {
     return (
       <AppLayout title="Visão Geral" subtitle="Principal">
@@ -188,7 +173,6 @@ export default function DashboardPage() {
   return (
     <AppLayout title="Visão Geral" subtitle="Principal">
 
-      {/* Welcome row */}
       <div className="flex items-end justify-between mb-6">
         <div>
           <h1 className="text-[22px] font-extrabold text-gray-900 tracking-tight">
@@ -209,9 +193,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Stats row 1 */}
       <div className="grid grid-cols-3 gap-4 mb-4">
-        {/* Valor da Carteira */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5 relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl bg-indigo-500" />
           <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">Valor da Carteira</div>
@@ -221,7 +203,6 @@ export default function DashboardPage() {
           <div className="text-xs text-gray-400 mt-2">{data?.assetCount ?? 0} ativos</div>
         </div>
 
-        {/* Sinais: premium vê dados reais, free vê bloqueado */}
         {isPremium ? (
           <>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5 relative overflow-hidden">
@@ -259,7 +240,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Stats row 2 — P&L */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">P&L Total</div>
@@ -284,7 +264,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="px-4 py-3 mb-5 bg-red-50 border border-red-200 rounded-xl text-[13px] text-red-600 flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
@@ -292,7 +271,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Tabela: premium vê sinais, free vê P&L básico + upgrade banner */}
       {isPremium ? (
         <PremiumAssetsTable signals={signals} loading={loading} />
       ) : (
@@ -305,7 +283,6 @@ export default function DashboardPage() {
   );
 }
 
-/* ── Premium table ───────────────────────────────────────────── */
 function PremiumAssetsTable({ signals, loading }: { signals: SignalSummary[]; loading: boolean }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden mb-5">
@@ -314,14 +291,12 @@ function PremiumAssetsTable({ signals, loading }: { signals: SignalSummary[]; lo
         <Link href="/analysis" className="text-xs text-indigo-500 hover:text-indigo-600 no-underline font-medium transition-colors">Ver análise completa</Link>
       </div>
 
-      {/* Header */}
       <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] px-5 py-2.5 bg-gray-50/60 border-b border-gray-100/80">
         {['Ativo', 'Preço', 'Posição', 'P&L Não Real.', 'P&L Total', 'Status'].map((h) => (
           <div key={h} className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{h}</div>
         ))}
       </div>
 
-      {/* Loading */}
       {loading && (
         <div className="py-8 text-center">
           <div className="inline-flex flex-col items-center gap-2">
@@ -331,7 +306,6 @@ function PremiumAssetsTable({ signals, loading }: { signals: SignalSummary[]; lo
         </div>
       )}
 
-      {/* Empty */}
       {!loading && signals.length === 0 && (
         <div className="py-8 text-center text-[13px] text-gray-400">
           Nenhum ativo cadastrado.{' '}
@@ -339,8 +313,7 @@ function PremiumAssetsTable({ signals, loading }: { signals: SignalSummary[]; lo
         </div>
       )}
 
-      {/* Rows */}
-      {signals.map((s: SignalSummary, i: number) => {
+      {signals.map((s, i) => {
         const positionValue   = s.quantity * s.priceUsd;
         const unrealizedColor = s.unrealizedPnl > 0 ? 'text-emerald-500' : s.unrealizedPnl < 0 ? 'text-red-500' : 'text-gray-400';
         const totalPnlColor   = s.totalPnl > 0 ? 'text-emerald-500' : s.totalPnl < 0 ? 'text-red-500' : 'text-gray-400';
@@ -360,10 +333,9 @@ function PremiumAssetsTable({ signals, loading }: { signals: SignalSummary[]; lo
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <CryptoIcon ticker={s.ticker} size={28} />
+              <AssetIcon logo={s.logo} ticker={s.ticker} size={28} />
               <div>
                 <div className="text-[13px] font-bold text-gray-900">{s.ticker}</div>
-                <div className="text-[11px] text-gray-400">{getAssetName(s.ticker)}</div>
               </div>
             </div>
             <div className="font-mono text-[13px] font-semibold text-gray-900">{formatCurrency(s.priceUsd)}</div>
@@ -388,7 +360,6 @@ function PremiumAssetsTable({ signals, loading }: { signals: SignalSummary[]; lo
   );
 }
 
-/* ── Free table ──────────────────────────────────────────────── */
 function FreeAssetsTable({ signals, loading }: { signals: SignalSummary[]; loading: boolean }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden mb-5">
@@ -397,14 +368,12 @@ function FreeAssetsTable({ signals, loading }: { signals: SignalSummary[]; loadi
         <Link href="/operations" className="text-xs text-indigo-500 hover:text-indigo-600 no-underline font-medium transition-colors">Registrar operação</Link>
       </div>
 
-      {/* Header */}
       <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] px-5 py-2.5 bg-gray-50/60 border-b border-gray-100/80">
         {['Ativo', 'Preço', 'Posição', 'P&L Não Real.', 'P&L Total'].map((h) => (
           <div key={h} className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{h}</div>
         ))}
       </div>
 
-      {/* Loading */}
       {loading && (
         <div className="py-8 text-center">
           <div className="inline-flex flex-col items-center gap-2">
@@ -414,7 +383,6 @@ function FreeAssetsTable({ signals, loading }: { signals: SignalSummary[]; loadi
         </div>
       )}
 
-      {/* Empty */}
       {!loading && signals.length === 0 && (
         <div className="py-8 text-center text-[13px] text-gray-400">
           Nenhum ativo.{' '}
@@ -422,8 +390,7 @@ function FreeAssetsTable({ signals, loading }: { signals: SignalSummary[]; loadi
         </div>
       )}
 
-      {/* Rows */}
-      {signals.map((s: SignalSummary, i: number) => {
+      {signals.map((s, i) => {
         const positionValue   = s.quantity * s.priceUsd;
         const unrealizedColor = s.unrealizedPnl > 0 ? 'text-emerald-500' : s.unrealizedPnl < 0 ? 'text-red-500' : 'text-gray-400';
         const totalPnlColor   = s.totalPnl > 0 ? 'text-emerald-500' : s.totalPnl < 0 ? 'text-red-500' : 'text-gray-400';
@@ -435,10 +402,9 @@ function FreeAssetsTable({ signals, loading }: { signals: SignalSummary[]; loadi
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <CryptoIcon ticker={s.ticker} size={28} />
+              <AssetIcon logo={s.logo} ticker={s.ticker} size={28} />
               <div>
                 <div className="text-[13px] font-bold text-gray-900">{s.ticker}</div>
-                <div className="text-[11px] text-gray-400">{getAssetName(s.ticker)}</div>
               </div>
             </div>
             <div className="font-mono text-[13px] font-semibold text-gray-900">{formatCurrency(s.priceUsd)}</div>

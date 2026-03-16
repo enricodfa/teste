@@ -18,6 +18,8 @@ export interface SignalSummary {
   realizedPnl:    number;
   unrealizedPnl:  number;
   totalPnl:       number;
+  coingecko_id?:  string | null;
+  logo?:          string | null;
 }
 
 export interface Portfolio {

@@ -18,7 +18,6 @@ import { usePortfolio } from '../../contexts/PortfolioContext';
 
 type OpType = 'BUY' | 'SELL';
 
-/* ── Stat Card ──────────────────────────────────────────────── */
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="card px-[18px] py-4">
@@ -28,7 +27,6 @@ function StatCard({ label, value, color }: { label: string; value: string; color
   );
 }
 
-/* ── Modal ──────────────────────────────────────────────────── */
 function OperationModal({
   onClose, onSave, initial, portfolioId,
 }: {
@@ -37,7 +35,9 @@ function OperationModal({
   initial?:    Trade;
   portfolioId: string | null;
 }) {
-  const [ticker,   setTicker]   = useState(initial?.ticker ?? '');
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(
+    initial ? { ticker: initial.ticker, name: '', logo: '' } : null
+  );
   const [type,     setType]     = useState<OpType>(initial?.type ?? 'BUY');
   const [date,     setDate]     = useState(initial ? initial.traded_at.slice(0, 10) : new Date().toISOString().slice(0, 10));
   const [price,    setPrice]    = useState(initial?.price_usd ? String(initial.price_usd) : '');
@@ -46,7 +46,7 @@ function OperationModal({
   const [error,    setError]    = useState<string | null>(null);
 
   const total = price && quantity ? parseFloat(price) * parseFloat(quantity) : 0;
-  const valid = !!(ticker && price && quantity && parseFloat(price) > 0 && parseFloat(quantity) > 0);
+  const valid = !!(selectedAsset && price && quantity && parseFloat(price) > 0 && parseFloat(quantity) > 0);
 
   async function handleSubmit() {
     if (!valid) return;
@@ -61,18 +61,21 @@ function OperationModal({
         });
         onSave(updated);
       } else {
-        // Only send portfolioId if it's a real non-empty value.
-        // Backend's findOrCreatePortfolio handles the null case.
-        const payload: Parameters<typeof createOperation>[0] = {
-          ticker,
+        if (!portfolioId) {
+          setError('Nenhuma carteira selecionada');
+          setSaving(false);
+          return;
+        }
+        const created = await createOperation({
+          portfolioId,
+          ticker:       selectedAsset!.ticker,
           type,
-          quantity:  parseFloat(quantity),
-          price_usd: parseFloat(price),
-          traded_at: date,
-        };
-        if (portfolioId) payload.portfolioId = portfolioId;
-
-        const created = await createOperation(payload);
+          quantity:     parseFloat(quantity),
+          price_usd:    parseFloat(price),
+          traded_at:    date,
+          coingecko_id: selectedAsset?.coingecko_id,
+          logo:         selectedAsset?.logo ?? '',
+        });
         onSave(created);
       }
       onClose();
@@ -126,7 +129,7 @@ function OperationModal({
               ) : (
                 <AssetSelector
                   placeholder="Selecionar ativo…"
-                  onSelectAsset={(asset: Asset) => setTicker(asset.ticker)}
+                  onSelectAsset={(asset: Asset) => setSelectedAsset(asset)}
                 />
               )}
             </div>
@@ -198,9 +201,7 @@ function OperationModal({
   );
 }
 
-/* ── Page ───────────────────────────────────────────────────── */
 export default function OperationsPage() {
-  // ✅ portfolioId vem do contexto — sem fetch local, sem race condition
   const { activePortfolioId, refresh: refreshPortfolio } = usePortfolio();
 
   const [operations, setOperations] = useState<Trade[]>([]);
@@ -210,11 +211,14 @@ export default function OperationsPage() {
   const [error,      setError]      = useState<string | null>(null);
 
   useEffect(() => {
-    listOperations()
+    if (!activePortfolioId) return;
+
+    setLoading(true);
+    listOperations({ portfolioId: activePortfolioId })
       .then(({ trades }) => setOperations(trades))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [activePortfolioId]);
 
   const totalBuys   = operations.filter((o) => o.type === 'BUY').length;
   const totalSells  = operations.filter((o) => o.type === 'SELL').length;
@@ -222,8 +226,6 @@ export default function OperationsPage() {
 
   function handleCreated(trade: Trade) {
     setOperations((prev) => [trade, ...prev]);
-    // Se era o primeiro trade, o backend acabou de criar o portfolio.
-    // Refresh do contexto para todas as outras páginas enxergarem o novo portfolioId.
     if (!activePortfolioId) refreshPortfolio();
   }
 
@@ -302,10 +304,14 @@ export default function OperationsPage() {
             }`}
           >
             <div className="mono text-xs text-[var(--t3)]">{formatDate(op.traded_at)}</div>
-            <div className="flex items-center gap-[7px]">
-              <CryptoIcon ticker={op.ticker} size={22} />
-              <span className="text-[13px] font-bold text-[var(--t1)]">{op.ticker}</span>
-            </div>
+           <div className="flex items-center gap-[7px]">
+  {op.logo ? (
+    <img src={op.logo} alt={op.ticker} className="w-[22px] h-[22px] rounded-full object-cover" />
+  ) : (
+    <CryptoIcon ticker={op.ticker} size={22} />
+  )}
+  <span className="text-[13px] font-bold text-[var(--t1)]">{op.ticker}</span>
+</div>
             <div className={`inline-flex items-center gap-1 px-[9px] py-0.5 rounded-full w-fit text-[11px] font-bold border ${
               op.type === 'SELL'
                 ? 'bg-[var(--red-subtle)] border-[var(--red-border)] text-[var(--red-text)]'

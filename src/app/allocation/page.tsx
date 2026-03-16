@@ -12,10 +12,10 @@ import { getAllocation, saveAllocation } from '../../services/allocationService'
 import AssetSelector from '../../components/AssetSelector';
 import type { Asset } from '../../services/assetsService';
 import PremiumRoute from '../../components/PremiumRoute';
+import { usePortfolio } from '../../contexts/PortfolioContext';
 
 const DEFAULT_BAND_PCT = DEFAULT_TOLERANCE_BAND * 100;
 
-// Fallback palette for assets not in the known map
 const CHART_COLORS = ['#3B5BDB', '#059669', '#F7931A', '#627EEA', '#E84142', '#D97706', '#8B5CF6', '#EC4899'];
 const KNOWN_COLORS: Record<string, string> = {
   BTC: '#F7931A', ETH: '#627EEA', SOL: '#9945FF', SUI: '#4DA2FF',
@@ -33,8 +33,9 @@ interface TargetItem {
   targetPct: number;
 }
 
-/* ── Page ───────────────────────────────────────────────────── */
 export default function AllocationPage() {
+  const { activePortfolioId } = usePortfolio();
+
   const [draft,     setDraft]     = useState<TargetItem[]>([]);
   const [saved,     setSaved]     = useState<TargetItem[]>([]);
   const [band,      setBand]      = useState(DEFAULT_BAND_PCT);
@@ -44,7 +45,9 @@ export default function AllocationPage() {
   const [error,     setError]     = useState<string | null>(null);
 
   useEffect(() => {
-    getAllocation().then(({ portfolio, assets }) => {
+    if (!activePortfolioId) return;
+
+    getAllocation(activePortfolioId).then(({ portfolio, assets }) => {
       if (!assets.length) return;
 
       const rows: TargetItem[] = assets.map((a) => ({
@@ -60,9 +63,9 @@ export default function AllocationPage() {
       setBand(bandPct);
       setSavedBand(bandPct);
     }).catch(() => {
-      // No portfolio yet — start blank
+      // Sem portfolio ainda — começa em branco
     });
-  }, []);
+  }, [activePortfolioId]);
 
   const totalPct  = draft.reduce((s, t) => s + (t.targetPct || 0), 0);
   const valid100  = Math.abs(totalPct - 100) < 0.01;
@@ -93,7 +96,7 @@ export default function AllocationPage() {
   }
 
   async function handleSave() {
-    if (!canSave) return;
+    if (!canSave || !activePortfolioId) return;
     setSaving(true);
     setError(null);
     try {
@@ -102,7 +105,7 @@ export default function AllocationPage() {
         target_pct: row.targetPct,
       }));
 
-      await saveAllocation({ toleranceBand: band / 100, assets });
+      await saveAllocation(activePortfolioId, { toleranceBand: band / 100, assets });
 
       setSaved([...draft]);
       setSavedBand(band);
@@ -185,7 +188,6 @@ export default function AllocationPage() {
               <div className="px-3.5 py-2.5 flex flex-col gap-2">
                 <AnimatePresence initial={false}>
                   {draft.map((row) => {
-                    // Pass tickers of other rows so they appear disabled in the dropdown
                     const othersUsed = usedTickers.filter((t) => t !== row.ticker);
                     return (
                       <motion.div
@@ -193,7 +195,6 @@ export default function AllocationPage() {
                         initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.16 }}
                         className="flex items-center gap-2 overflow-hidden"
                       >
-                        {/* Asset picker — takes up remaining width */}
                         <div className="flex-1 min-w-0">
                           <AssetSelector
                             placeholder={row.ticker ? `${row.name} (${row.ticker})` : 'Selecionar ativo…'}
@@ -202,7 +203,6 @@ export default function AllocationPage() {
                           />
                         </div>
 
-                        {/* % input */}
                         <div className="flex items-center border border-[var(--border)] rounded-[var(--r)] bg-[var(--surface)] overflow-hidden shrink-0 focus-within:border-[var(--blue)]">
                           <input
                             type="number" min={0} max={100}
@@ -214,7 +214,6 @@ export default function AllocationPage() {
                           <span className="pr-2.5 text-[12px] text-[var(--t4)] font-semibold">%</span>
                         </div>
 
-                        {/* Delete */}
                         <button
                           type="button" onClick={() => deleteRow(row.id)}
                           className="w-[34px] h-9 flex items-center justify-center border border-[var(--border)] rounded-[var(--r-sm)] bg-transparent cursor-pointer text-[var(--t4)] transition-all duration-150 shrink-0 hover:bg-[var(--red-subtle)] hover:border-[var(--red-border)] hover:text-[var(--red)]"
@@ -233,7 +232,6 @@ export default function AllocationPage() {
                   Adicionar ativo
                 </button>
 
-                {/* Total bar */}
                 <div className={`flex items-center justify-between px-3.5 py-[9px] rounded-[var(--r)] border mt-1 ${
                   totalBarState === 'green'
                     ? 'bg-[var(--green-subtle)] border-[var(--green-border)]'
@@ -261,7 +259,6 @@ export default function AllocationPage() {
                   </span>
                 </div>
 
-                {/* Save button */}
                 <button
                   onClick={handleSave}
                   disabled={!canSave || saving}

@@ -8,6 +8,7 @@ export interface Trade {
   user_id: string;
   portfolio_id: string;
   ticker: string;
+  logo:         string | null;
   type: TradeType;
   quantity: number;
   price_usd: number;
@@ -38,6 +39,8 @@ export interface CreateOperationPayload {
   price_usd?: number;
   traded_at?: string;
   notes?: string;
+  coingecko_id?: string | null; 
+  logo?: string | null;            
 }
 
 export interface UpdateOperationPayload {

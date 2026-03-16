@@ -4,6 +4,7 @@ import { getToken } from './tokenHelper';
 export interface Asset {
   name:   string;
   ticker: string;
+  coingecko_id?: string;  
   logo:   string;
 }
 
