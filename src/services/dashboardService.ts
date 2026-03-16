@@ -27,22 +27,24 @@ export interface Portfolio {
 }
 
 export interface DashboardSummary {
-  portfolio:      Portfolio | null;
-  signals:        SignalSummary[];
-  totalValueUsd:  number;
-  sellCount:      number;
-  buyCount:       number;
-  assetCount:     number;
-  totalPnl:       number;
-  totalRealized:  number;
+  portfolio:       Portfolio | null;
+  signals:         SignalSummary[];
+  totalValueUsd:   number;
+  sellCount:       number;
+  buyCount:        number;
+  assetCount:      number;
+  totalPnl:        number;
+  totalRealized:   number;
   totalUnrealized: number;
 }
 
 /**
- * GET /dashboard
+ * GET /dashboard?portfolio_id=<uuid>
  * Returns portfolio summary with live prices, signals, and P&L.
+ * If portfolioId is omitted the backend falls back to the most recent portfolio.
  */
-export async function getSummary(): Promise<DashboardSummary> {
-  const token = await getToken();
-  return api.get<DashboardSummary>('/dashboard', { token });
+export async function getSummary(portfolioId?: string): Promise<DashboardSummary> {
+  const token  = await getToken();
+  const params = portfolioId ? `?portfolio_id=${portfolioId}` : '';
+  return api.get<DashboardSummary>(`/dashboard${params}`, { token });
 }

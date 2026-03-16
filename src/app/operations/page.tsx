@@ -14,7 +14,7 @@ import {
   listOperations, createOperation, updateOperation, deleteOperation,
 } from '../../services/operationsService';
 import type { Trade } from '../../services/operationsService';
-import { getAllocation } from '../../services/allocationService';
+import { usePortfolio } from '../../contexts/PortfolioContext';
 
 type OpType = 'BUY' | 'SELL';
 
@@ -32,10 +32,10 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 function OperationModal({
   onClose, onSave, initial, portfolioId,
 }: {
-  onClose: () => void;
-  onSave: (trade: Trade) => void;
-  initial?: Trade;
-  portfolioId: string;
+  onClose:     () => void;
+  onSave:      (trade: Trade) => void;
+  initial?:    Trade;
+  portfolioId: string | null;
 }) {
   const [ticker,   setTicker]   = useState(initial?.ticker ?? '');
   const [type,     setType]     = useState<OpType>(initial?.type ?? 'BUY');
@@ -61,14 +61,18 @@ function OperationModal({
         });
         onSave(updated);
       } else {
-        const created = await createOperation({
-          portfolioId,
+        // Only send portfolioId if it's a real non-empty value.
+        // Backend's findOrCreatePortfolio handles the null case.
+        const payload: Parameters<typeof createOperation>[0] = {
           ticker,
           type,
           quantity:  parseFloat(quantity),
           price_usd: parseFloat(price),
           traded_at: date,
-        });
+        };
+        if (portfolioId) payload.portfolioId = portfolioId;
+
+        const created = await createOperation(payload);
         onSave(created);
       }
       onClose();
@@ -88,7 +92,10 @@ function OperationModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 8 }} transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
         className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--r-xl)] w-full max-w-[480px] shadow-[0_24px_60px_rgba(14,17,23,0.14)]"
       >
         <div className="px-5 pt-[18px] pb-4 border-b border-[var(--border)] flex items-center justify-between">
@@ -102,7 +109,11 @@ function OperationModal({
         </div>
 
         <div className="p-5">
-          {error && <div className="px-3 py-2 mb-3.5 bg-[var(--red-subtle)] border border-[var(--red-border)] rounded-[var(--r)] text-xs text-[var(--red-text)]">{error}</div>}
+          {error && (
+            <div className="px-3 py-2 mb-3.5 bg-[var(--red-subtle)] border border-[var(--red-border)] rounded-[var(--r)] text-xs text-[var(--red-text)]">
+              {error}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3.5 mb-4">
             <div>
@@ -166,14 +177,17 @@ function OperationModal({
             <button onClick={onClose} className="flex-1 py-2.5 bg-transparent border border-[var(--border)] rounded-[var(--r)] text-[13.5px] font-semibold text-[var(--t2)] cursor-pointer transition-colors duration-150 hover:bg-[var(--bg)]">
               Cancelar
             </button>
-            <button onClick={handleSubmit} disabled={!valid || saving}
+            <button
+              onClick={handleSubmit}
+              disabled={!valid || saving}
               className={`flex-[2] py-2.5 border-none rounded-[var(--r)] text-[13.5px] font-semibold transition-colors duration-150 flex items-center justify-center gap-[7px] ${
                 valid && !saving
                   ? type === 'BUY'
                     ? 'bg-[var(--green)] text-white cursor-pointer hover:opacity-90'
                     : 'bg-[var(--red)] text-white cursor-pointer hover:opacity-90'
                   : 'bg-[var(--border)] text-[var(--t4)] cursor-not-allowed'
-              }`}>
+              }`}
+            >
               {type === 'BUY' ? <TrendUp size={14} weight="bold" /> : <TrendDown size={14} weight="bold" />}
               {saving ? 'Salvando…' : initial ? 'Salvar alterações' : type === 'BUY' ? 'Registrar Compra' : 'Registrar Venda'}
             </button>
@@ -186,22 +200,18 @@ function OperationModal({
 
 /* ── Page ───────────────────────────────────────────────────── */
 export default function OperationsPage() {
+  // ✅ portfolioId vem do contexto — sem fetch local, sem race condition
+  const { activePortfolioId, refresh: refreshPortfolio } = usePortfolio();
+
   const [operations, setOperations] = useState<Trade[]>([]);
-  const [portfolioId, setPortfolioId] = useState<string>('');
   const [showModal,  setShowModal]  = useState(false);
   const [editOp,     setEditOp]     = useState<Trade | null>(null);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      listOperations(),
-      getAllocation(),
-    ]).then(([{ trades }, { portfolio }]) => {
-      setOperations(trades);
-      const pid = portfolio?.id ?? (trades.length > 0 ? trades[0].portfolio_id : '');
-      setPortfolioId(pid);
-    })
+    listOperations()
+      .then(({ trades }) => setOperations(trades))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -212,7 +222,9 @@ export default function OperationsPage() {
 
   function handleCreated(trade: Trade) {
     setOperations((prev) => [trade, ...prev]);
-    if (!portfolioId) setPortfolioId(trade.portfolio_id);
+    // Se era o primeiro trade, o backend acabou de criar o portfolio.
+    // Refresh do contexto para todas as outras páginas enxergarem o novo portfolioId.
+    if (!activePortfolioId) refreshPortfolio();
   }
 
   function handleUpdated(trade: Trade) {
@@ -276,14 +288,18 @@ export default function OperationsPage() {
           <div className="px-5 py-10 text-center text-[var(--t4)] text-[13px]">Carregando…</div>
         )}
         {!loading && operations.length === 0 && (
-          <div className="px-5 py-10 text-center text-[var(--t4)] text-[13.5px]">Nenhuma operação registrada ainda.</div>
+          <div className="px-5 py-10 text-center text-[var(--t4)] text-[13.5px]">
+            Nenhuma operação registrada ainda.
+          </div>
         )}
 
         {operations.map((op, i) => (
           <div
             key={op.id}
             style={{ display: 'grid', gridTemplateColumns: COL }}
-            className={`px-5 py-3 items-center transition-colors duration-100 hover:bg-[var(--bg)] ${i < operations.length - 1 ? 'border-b border-[var(--border-2)]' : ''}`}
+            className={`px-5 py-3 items-center transition-colors duration-100 hover:bg-[var(--bg)] ${
+              i < operations.length - 1 ? 'border-b border-[var(--border-2)]' : ''
+            }`}
           >
             <div className="mono text-xs text-[var(--t3)]">{formatDate(op.traded_at)}</div>
             <div className="flex items-center gap-[7px]">
@@ -300,16 +316,24 @@ export default function OperationsPage() {
             </div>
             <div className="mono text-[13px] font-semibold text-[var(--t2)]">{formatCurrency(op.price_usd)}</div>
             <div className="mono text-[13px] font-semibold text-[var(--t2)]">
-              {op.quantity < 1 ? op.quantity.toFixed(5) : op.quantity.toLocaleString('en-US', { maximumFractionDigits: 4 })}
+              {op.quantity < 1
+                ? op.quantity.toFixed(5)
+                : op.quantity.toLocaleString('en-US', { maximumFractionDigits: 4 })}
             </div>
             <div className="mono text-[13px] font-bold text-[var(--t1)]">{formatCurrency(op.total_usd)}</div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => setEditOp(op)} title="Editar"
-                className="w-7 h-7 flex items-center justify-center border border-[var(--border)] rounded-[var(--r-sm)] bg-transparent cursor-pointer text-[var(--t4)] transition-colors duration-150 hover:bg-[var(--blue-subtle)] hover:border-[var(--blue)] hover:text-[var(--blue)]">
+              <button
+                onClick={() => setEditOp(op)}
+                title="Editar"
+                className="w-7 h-7 flex items-center justify-center border border-[var(--border)] rounded-[var(--r-sm)] bg-transparent cursor-pointer text-[var(--t4)] transition-colors duration-150 hover:bg-[var(--blue-subtle)] hover:border-[var(--blue)] hover:text-[var(--blue)]"
+              >
                 <PencilSimple size={12} />
               </button>
-              <button onClick={() => handleDelete(op.id)} title="Excluir"
-                className="w-7 h-7 flex items-center justify-center border border-[var(--border)] rounded-[var(--r-sm)] bg-transparent cursor-pointer text-[var(--t4)] transition-colors duration-150 hover:bg-[var(--red-subtle)] hover:border-[var(--red-border)] hover:text-[var(--red)]">
+              <button
+                onClick={() => handleDelete(op.id)}
+                title="Excluir"
+                className="w-7 h-7 flex items-center justify-center border border-[var(--border)] rounded-[var(--r-sm)] bg-transparent cursor-pointer text-[var(--t4)] transition-colors duration-150 hover:bg-[var(--red-subtle)] hover:border-[var(--red-border)] hover:text-[var(--red)]"
+              >
                 <Trash size={12} />
               </button>
             </div>
@@ -319,12 +343,21 @@ export default function OperationsPage() {
 
       <AnimatePresence>
         {showModal && (
-          <OperationModal portfolioId={portfolioId} onClose={() => setShowModal(false)} onSave={handleCreated} />
+          <OperationModal
+            portfolioId={activePortfolioId}
+            onClose={() => setShowModal(false)}
+            onSave={handleCreated}
+          />
         )}
       </AnimatePresence>
       <AnimatePresence>
         {editOp && (
-          <OperationModal portfolioId={portfolioId} initial={editOp} onClose={() => setEditOp(null)} onSave={handleUpdated} />
+          <OperationModal
+            portfolioId={activePortfolioId}
+            initial={editOp}
+            onClose={() => setEditOp(null)}
+            onSave={handleUpdated}
+          />
         )}
       </AnimatePresence>
     </AppLayout>

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   SquaresFour,
@@ -13,7 +14,6 @@ import {
   Crown,
   Lightning,
 } from '@phosphor-icons/react';
-import { Activity } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 /* ── nav config ───────────────────────────────────────────── */
@@ -72,14 +72,21 @@ export default function Sidebar() {
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[var(--sidebar-w)] bg-white border-r border-gray-200 flex flex-col z-40">
+      
       {/* Logo */}
-      <div className="h-[var(--header-h)] border-b border-gray-200 flex items-center px-4 gap-2.5">
-        <div className="w-8 h-8 rounded-[9px] bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
-          <Activity size={17} strokeWidth={2.5} className="text-white" />
-        </div>
-        <span className="text-[15px] font-extrabold tracking-tight text-gray-900">
-          Nortfy
-        </span>
+      <div className="h-[var(--header-h)] border-b border-gray-200 flex items-center px-5">
+        <Link href="/" className="flex items-center group">
+          <div className="relative transition-transform group-hover:scale-105">
+            <Image 
+              src="/logo.png" 
+              alt="Nortfy" 
+              width={120} 
+              height={38} 
+              className="object-contain h-6 w-auto"
+              priority
+            />
+          </div>
+        </Link>
       </div>
 
       {/* Navigation */}

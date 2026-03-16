@@ -149,12 +149,7 @@ export default function PlanosPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-gradient-to-b from-indigo-100/50 via-violet-50/20 to-transparent rounded-full blur-[100px] pointer-events-none" />
 
         <div className="relative max-w-3xl mx-auto px-6">
-          <FadeUp>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 mb-6">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="text-[12px] font-semibold text-indigo-700">Planos simples, sem surpresas</span>
-            </div>
-          </FadeUp>
+    
           <FadeUp delay={0.05}>
             <h1 className="text-4xl sm:text-5xl font-extrabold text-[#121212] tracking-tight leading-tight mb-4">
               Comece grátis.{' '}

@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Activity, LayoutDashboard, LogIn } from 'lucide-react';
+import { Menu, X, LayoutDashboard, LogIn } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 const NAV_LINKS = [
@@ -47,18 +48,19 @@ export default function Navbar() {
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:shadow-indigo-500/40 transition-shadow">
-                <Activity className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
-                <div className="absolute inset-0 rounded-xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              <span className="text-[22px] font-extrabold tracking-tight text-[#121212]">
-                Nortfy
-              </span>
-            </Link>
+        <Link href="/" className="flex items-center group">
+  <div className="relative transition-transform group-hover:scale-105">
+    <Image 
+      src="/logo.png" 
+      alt="Nortfy" 
+      width={140} 
+      height={45} 
+      className="object-contain h-7 w-auto md:h-8"
+      priority
+    />
+  </div>
+</Link>
 
-            {/* Desktop Links */}
             <div className="hidden md:flex items-center gap-1">
               {NAV_LINKS.map((link) => (
                 <Link
@@ -91,7 +93,6 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Mobile Toggle */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl hover:bg-black/[0.04] transition-colors"
@@ -103,7 +104,6 @@ export default function Navbar() {
         </div>
       </motion.nav>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div

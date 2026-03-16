@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans, IBM_Plex_Mono } from 'next/font/google';
 import { AuthProvider } from '../contexts/AuthContext';
+import { PortfolioProvider } from '../contexts/PortfolioContext';
 import './globals.css';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className={`${jakarta.variable} ${ibmMono.variable}`}>
       <body>
         <AuthProvider>
-          {children}
+          <PortfolioProvider>
+            {children}
+          </PortfolioProvider>
         </AuthProvider>
       </body>
     </html>

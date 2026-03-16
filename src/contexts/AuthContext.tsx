@@ -3,19 +3,17 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { getStatus } from '../services/plansService';
+import { getMe } from '../services/authService';
 
 interface AuthContextType {
   user:         User | null;
   session:      Session | null;
   loading:      boolean;
   isPremium:    boolean;
-  /** Raw status from the backend: 'active' | 'canceled' | 'inactive' | null (while loading) */
   planStatus:   string | null;
   planLoading:  boolean;
   signInWithGoogle: () => Promise<void>;
   signOut:          () => Promise<void>;
-  /** Recarrega o status do plano do backend */
   refreshPlanStatus: () => Promise<void>;
 }
 
@@ -28,35 +26,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isPremium,   setIsPremium]   = useState(false);
   const [planStatus,  setPlanStatus]  = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
-  
-  // Track if initial auth check is complete
+
   const authInitialized = useRef(false);
 
-  // Initialize auth state
+  async function fetchPlanForUser(mounted: () => boolean) {
+    try {
+      const data = await getMe();
+      if (!mounted()) return;
+      setIsPremium(data.subscription.is_premium);
+      setPlanStatus(data.subscription.status);
+    } catch (error) {
+      console.error('Error fetching auth data (getMe):', error);
+      if (!mounted()) return;
+      setIsPremium(false);
+      setPlanStatus(null);
+    } finally {
+      if (mounted()) setPlanLoading(false);
+    }
+  }
+
   useEffect(() => {
-    let mounted = true;
+    let alive = true;
+    const mounted = () => alive;
 
     async function initAuth() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
+
+        if (!mounted()) return;
+
         setSession(session);
         setUser(session?.user ?? null);
+        setLoading(false);
         authInitialized.current = true;
-        
-        // If no user, we're done loading
-        if (!session?.user) {
-          setLoading(false);
-          setPlanLoading(false);
+
+        if (session?.user) {
+          await fetchPlanForUser(mounted);
         } else {
-          setLoading(false);
-          // Plan will be fetched by the other useEffect
+          setPlanLoading(false);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        if (mounted) {
+        if (mounted()) {
           setLoading(false);
           setPlanLoading(false);
         }
@@ -66,11 +77,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
+      if (!mounted()) return;
       setSession(session);
       setUser(session?.user ?? null);
-      
-      // If user logs out, reset plan state
+
       if (!session?.user) {
         setIsPremium(false);
         setPlanStatus(null);
@@ -79,57 +89,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
-      mounted = false;
+      alive = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  // Fetch plan status when user changes (and is not null)
   useEffect(() => {
-    let mounted = true;
+    if (!authInitialized.current || !user) return;
 
-    async function fetchPlan() {
-      // Only fetch if we have a user and auth is initialized
-      if (!user || !authInitialized.current) {
-        return;
-      }
+    let alive = true;
+    const mounted = () => alive;
 
-      setPlanLoading(true);
-      try {
-        const data = await getStatus();
-        if (mounted) {
-          setIsPremium(data.is_premium);
-          setPlanStatus(data.status);
-        }
-      } catch (error) {
-        console.error('Error fetching plan status:', error);
-        if (mounted) {
-          setIsPremium(false);
-          setPlanStatus(null);
-        }
-      } finally {
-        if (mounted) {
-          setPlanLoading(false);
-        }
-      }
-    }
+    setPlanLoading(true);
+    fetchPlanForUser(mounted);
 
-    fetchPlan();
+    return () => { alive = false; };
+  }, [user?.id]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id]); // Use user.id instead of user object to avoid unnecessary re-fetches
-
-  // Public function to refresh plan status
   const refreshPlanStatus = useCallback(async () => {
     if (!user) return;
-    
+
     setPlanLoading(true);
     try {
-      const data = await getStatus();
-      setIsPremium(data.is_premium);
-      setPlanStatus(data.status);
+      const data = await getMe();
+      setIsPremium(data.subscription.is_premium);
+      setPlanStatus(data.subscription.status);
     } catch (error) {
       console.error('Error refreshing plan status:', error);
       setIsPremium(false);
@@ -152,16 +136,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
-      isPremium, 
-      planStatus, 
-      planLoading, 
-      signInWithGoogle, 
+    <AuthContext.Provider value={{
+      user,
+      session,
+      loading,
+      isPremium,
+      planStatus,
+      planLoading,
+      signInWithGoogle,
       signOut,
-      refreshPlanStatus 
+      refreshPlanStatus,
     }}>
       {children}
     </AuthContext.Provider>

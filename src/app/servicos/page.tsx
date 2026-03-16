@@ -133,12 +133,7 @@ export default function ServicosPage() {
         />
 
         <div className="relative max-w-3xl mx-auto px-6">
-          <FadeUp>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 mb-6">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="text-[12px] font-semibold text-indigo-700">Nossos Serviços</span>
-            </div>
-          </FadeUp>
+
           <FadeUp delay={0.05}>
             <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold text-[#121212] tracking-tight leading-[1.08] mb-5">
               Tudo que você precisa para{' '}
