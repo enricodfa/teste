@@ -3,20 +3,11 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  QrCode,
-  Copy,
-  CheckCircle,
-  Timer,
-  ArrowLeft,
-  ChartLine,
-  Warning,
-  ArrowClockwise,
-  ArrowSquareOut,
-  ShieldCheck,
-  CreditCard,
-  Hourglass,
-} from '@phosphor-icons/react';
+  QrCode, Copy, CheckCircle, Timer, ArrowLeft, AlertCircle, ShieldCheck, CreditCard, Hourglass, Lock, Zap
+} from 'lucide-react';
 import { CardPayment, initMercadoPago } from '@mercadopago/sdk-react';
 import {
   createPixCheckout,
@@ -25,132 +16,78 @@ import {
   type PixCheckoutResponse,
   type CardFormData,
 } from '../../services/checkoutService';
-import { useAuth } from '../../contexts/AuthContext'; // ADICIONAR IMPORT
+import { useAuth } from '../../contexts/AuthContext';
 
 /* ── Config ─────────────────────────────────────────────────── */
-const MP_PUBLIC_KEY  = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY ?? '';
-const PIX_EXPIRY_S   = 30 * 60;
-const POLL_MS        = 5_000;
+const MP_PUBLIC_KEY = process.env.NEXT_PUBLIC_MP_PUBLIC_KEY ?? '';
+const PIX_EXPIRY_S = 30 * 60;
+const POLL_MS = 5_000;
 
 if (typeof window !== 'undefined' && MP_PUBLIC_KEY) {
   initMercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
 }
 
 /* ── Types ──────────────────────────────────────────────────── */
-type Tab       = 'pix' | 'card';
-type PixStage  = 'loading' | 'ready' | 'timeout' | 'error';
+type Tab = 'pix' | 'card';
+type PixStage = 'loading' | 'ready' | 'timeout' | 'error';
 type CardStage = 'idle' | 'submitting' | 'pending' | 'rejected' | 'error';
-
-/* ── Shared success stage ───────────────────────────────────── */
 type GlobalStage = 'paying' | 'success';
 
-/* ── MP rejection reason translations ──────────────────────── */
 const MP_REJECTIONS: Record<string, string> = {
   cc_rejected_bad_filled_card_number: 'Número do cartão incorreto. Verifique e tente novamente.',
-  cc_rejected_bad_filled_date:        'Data de vencimento inválida.',
-  cc_rejected_bad_filled_security_code: 'CVV incorreto.',
-  cc_rejected_insufficient_amount:    'Saldo insuficiente no cartão.',
-  cc_rejected_blacklist:              'Cartão bloqueado. Entre em contato com o banco emissor.',
-  cc_rejected_call_for_authorize:     'Pagamento não autorizado. Ligue para o banco para liberar.',
-  cc_rejected_card_disabled:          'Cartão desativado. Contate o banco emissor.',
-  cc_rejected_duplicated_payment:     'Pagamento duplicado detectado. Aguarde alguns minutos.',
-  cc_rejected_high_risk:              'Pagamento recusado por análise de risco.',
-  cc_rejected_invalid_installments:   'Número de parcelas inválido para este cartão.',
-  cc_rejected_max_attempts:           'Limite de tentativas atingido. Tente novamente em 24h.',
-  cc_rejected_other_reason:           'Pagamento recusado. Tente com outro cartão.',
+  cc_rejected_bad_filled_date: 'Data de vencimento inválida.',
+  cc_rejected_bad_filled_security_code: 'CVC/CVV incorreto.',
+  cc_rejected_insufficient_amount: 'Saldo insuficiente no cartão.',
+  cc_rejected_blacklist: 'Cartão bloqueado. Entre em contato com o banco emissor.',
+  cc_rejected_call_for_authorize: 'Pagamento não autorizado. Ligue para o banco para liberar.',
+  cc_rejected_card_disabled: 'Cartão desativado. Contate o banco emissor.',
+  cc_rejected_duplicated_payment: 'Pagamento duplicado detectado. Aguarde alguns minutos.',
+  cc_rejected_high_risk: 'Cancelado por anti-fraude. Tente usar o PIX ou verifique seu aplicativo do banco.',
+  cc_rejected_invalid_installments: 'Número de parcelas inválido para este cartão.',
+  cc_rejected_max_attempts: 'Limite máximo de tentativas.',
+  cc_rejected_other_reason: 'Pagamento recusado. Tente com outro método matricial.',
 };
 
 function cardErrMsg(detail?: string | null): string {
-  if (!detail) return 'Pagamento recusado. Tente com outro cartão ou entre em contato com o banco.';
+  if (!detail) return 'Transação negada pela processadora de crédito.';
   return MP_REJECTIONS[detail] ?? `Recusado pelo banco (${detail.replace(/_/g, ' ')}).`;
 }
 
-/* ── Utils ──────────────────────────────────────────────────── */
 function fmt(s: number) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/* ── Sub-components ─────────────────────────────────────────── */
-function Spinner({ size = 14 }: { size?: number }) {
-  return (
-    <div style={{
-      width: size, height: size,
-      border: '2px solid var(--border)',
-      borderTopColor: 'var(--blue)',
-      borderRadius: '50%',
-      animation: 'ck-spin 0.7s linear infinite',
-      flexShrink: 0,
-    }} />
-  );
-}
+const ease = [0.23, 1, 0.32, 1] as const;
 
-function Steps({ success }: { success: boolean }) {
-  const labels  = ['Plano', 'Pagamento', 'Confirmação'];
-  const current = success ? 3 : 2;
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 36 }}>
-      {labels.map((label, i) => {
-        const n       = i + 1;
-        const passed  = n < current;
-        const active  = n === current;
-        return (
-          <div key={label} style={{ display: 'flex', alignItems: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: passed || active ? 'var(--blue)' : 'var(--surface)',
-                border: passed || active ? 'none' : '1.5px solid var(--border)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 700,
-                color: passed || active ? 'white' : 'var(--t4)',
-                transition: 'all 0.25s',
-              }}>
-                {passed ? <CheckCircle size={14} weight="fill" /> : n}
-              </div>
-              <span style={{ fontSize: 11, fontWeight: active ? 600 : 500, color: active ? 'var(--t1)' : 'var(--t4)', whiteSpace: 'nowrap' }}>
-                {label}
-              </span>
-            </div>
-            {i < labels.length - 1 && (
-              <div style={{ width: 48, height: 1.5, marginBottom: 18, marginLeft: 4, marginRight: 4, background: passed ? 'var(--blue)' : 'var(--border-2)', transition: 'background 0.3s' }} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── Card Brick (memoized to prevent re-init on every render) ── */
+/* ── Card Brick ─────────────────────────────────────────────── */
 const CARD_CUSTOMIZATION = {
   visual: {
     hideFormTitle: true,
     style: {
       customVariables: {
-        textPrimaryColor:       '#0E1117',
-        textSecondaryColor:     '#6B7280',
-        inputBackgroundColor:   '#F4F6FA',
-        formBackgroundColor:    '#FFFFFF',
-        baseColor:              '#3B5BDB',
-        baseColorFirstVariant:  '#2F4AC8',
-        baseColorSecondVariant: '#EEF2FF',
-        errorColor:             '#DC2626',
-        borderRadiusSmall:      '6px',
-        borderRadiusMedium:     '8px',
+        textPrimaryColor: '#111827',
+        textSecondaryColor: '#6B7280',
+        inputBackgroundColor: '#F9FAFB',
+        formBackgroundColor: 'transparent',
+        baseColor: '#4F46E5',  // Indigo-600
+        baseColorFirstVariant: '#4338CA',  // Indigo-700
+        baseColorSecondVariant: '#EEF2FF',  // Indigo-50
+        errorColor: '#EF4444',  // Red-500
+        borderRadiusSmall: '8px',
+        borderRadiusMedium: '12px',
       },
     },
   },
   paymentMethods: {
-    creditCard:      'all',
-    debitCard:       'all',
+    creditCard: 'all',
+    debitCard: 'all',
     maxInstallments: 12,
   },
 } as const;
 
 const CardBrick = memo(function CardBrick({ onReady, onError, onSubmit }: {
-  onReady:  () => void;
-  onError:  (err: unknown) => void;
+  onReady: () => void;
+  onError: (err: unknown) => void;
   onSubmit: (formData: CardFormData) => Promise<void>;
 }) {
   return (
@@ -167,46 +104,42 @@ const CardBrick = memo(function CardBrick({ onReady, onError, onSubmit }: {
 /* ── Page ───────────────────────────────────────────────────── */
 export default function CheckoutPage() {
   const router = useRouter();
-  const { refreshPlanStatus } = useAuth(); // ADICIONAR HOOK
+  const { refreshPlanStatus } = useAuth();
 
-  /* Global */
-  const [global,    setGlobal]    = useState<GlobalStage>('paying');
-
-  /* Tab */
-  const [tab,       setTab]       = useState<Tab>('pix');
+  const [global, setGlobal] = useState<GlobalStage>('paying');
+  const [tab, setTab] = useState<Tab>('pix');
 
   /* PIX */
-  const [pixStage,  setPixStage]  = useState<PixStage>('loading');
-  const [pixData,   setPixData]   = useState<PixCheckoutResponse | null>(null);
-  const [pixError,  setPixError]  = useState<string | null>(null);
+  const [pixStage, setPixStage] = useState<PixStage>('loading');
+  const [pixData, setPixData] = useState<PixCheckoutResponse | null>(null);
+  const [pixError, setPixError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(PIX_EXPIRY_S);
-  const [copied,    setCopied]    = useState(false);
+  const [copied, setCopied] = useState(false);
 
   /* Card */
-  const [cardBoot,  setCardBoot]  = useState(false);
-  const [cardRdy,   setCardRdy]   = useState(false);
+  const [cardBoot, setCardBoot] = useState(false);
+  const [cardRdy, setCardRdy] = useState(false);
   const [cardStage, setCardStage] = useState<CardStage>('idle');
   const [cardError, setCardError] = useState<string | null>(null);
 
-  /* Polling refs (shared for pix & card pending) */
-  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>  | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopAll = useCallback(() => {
-    if (pollRef.current)    clearInterval(pollRef.current);
-    if (timerRef.current)   clearInterval(timerRef.current);
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (timerRef.current) clearInterval(timerRef.current);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
   }, []);
 
-  /** Função para lidar com sucesso do pagamento */
   const handlePaymentSuccess = useCallback(async () => {
     setGlobal('success');
-    await refreshPlanStatus(); // Atualiza o contexto antes de redirecionar
+    try {
+      await refreshPlanStatus();
+    } catch { }
     setTimeout(() => router.replace('/dashboard'), 2800);
   }, [refreshPlanStatus, router]);
 
-  /** Generic status poller — calls onActive when plan becomes active */
   const startStatusPoll = useCallback((
     onActive: () => void,
     expiryMs?: number,
@@ -219,7 +152,7 @@ export default function CheckoutPage() {
           stopAll();
           onActive();
         }
-      } catch { /* ignore transient errors */ }
+      } catch { }
     }, POLL_MS);
 
     if (expiryMs) {
@@ -230,7 +163,6 @@ export default function CheckoutPage() {
     }
   }, [stopAll]);
 
-  /** PIX: start countdown + status poll */
   const startPixPolling = useCallback(() => {
     timerRef.current = setInterval(() => {
       setRemaining((r) => {
@@ -257,13 +189,12 @@ export default function CheckoutPage() {
       setPixStage('ready');
       startPixPolling();
     } catch (err) {
-      setPixError(err instanceof Error ? err.message : 'Erro desconhecido.');
+      setPixError(err instanceof Error ? err.message : 'Falha ao assinar transação matriz.');
       setPixStage('error');
     }
   }, [startPixPolling, stopAll]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { generateQR(); return stopAll; }, []);
+  useEffect(() => { generateQR(); return stopAll; }, [generateQR, stopAll]);
 
   function switchTab(t: Tab) {
     setTab(t);
@@ -277,8 +208,7 @@ export default function CheckoutPage() {
     setTimeout(() => setCopied(false), 2200);
   }
 
-  /** Card payment — handles all response states correctly */
-  const handleCardSubmit = useCallback(async (formData: CardFormData) => {
+  const handleCardSubmitLogic = useCallback(async (formData: CardFormData) => {
     setCardStage('submitting');
     setCardError(null);
     stopAll();
@@ -289,325 +219,343 @@ export default function CheckoutPage() {
         case 'approved':
           await handlePaymentSuccess();
           break;
-
         case 'pending':
         case 'in_process':
           setCardStage('pending');
           startStatusPoll(handlePaymentSuccess);
           break;
-
         case 'rejected':
           setCardStage('rejected');
           setCardError(cardErrMsg(res.status_detail));
           break;
-
         default:
           setCardStage('error');
-          setCardError('Status de pagamento desconhecido. Entre em contato com o suporte.');
+          setCardError('A autorizadora de crédito entrou em fallback. Contate o Suporte.');
       }
     } catch (err) {
       setCardStage('error');
-      setCardError(err instanceof Error ? err.message : 'Erro ao processar pagamento.');
+      setCardError(err instanceof Error ? err.message : 'Exceção fatal no roteamento financeiro.');
     }
   }, [stopAll, startStatusPoll, handlePaymentSuccess]);
 
-  const handleCardReady  = useCallback(() => setCardRdy(true), []);
-  const handleCardError  = useCallback((err: unknown) => { console.error('[MP CardPayment]', err); }, []);
+  const submitRef = useRef(handleCardSubmitLogic);
+  useEffect(() => { submitRef.current = handleCardSubmitLogic; }, [handleCardSubmitLogic]);
+  const stableSubmit = useCallback((data: CardFormData) => submitRef.current(data), []);
 
-  const timerColor =
-    pixStage === 'timeout' ? 'var(--red-text)' :
-    remaining < 120        ? 'var(--amber)'    :
-    'var(--t4)';
+  const handleCardReady = useCallback(() => setCardRdy(true), []);
+  const handleCardError = useCallback((err: unknown) => { console.error('[MP CardPayment]', err); }, []);
 
   const success = global === 'success';
 
-  /* ── Render ── */
   return (
-    <>
-      <style>{`
-        @keyframes ck-pulse  { 0%,100%{opacity:1} 50%{opacity:.3} }
-        @keyframes ck-spin   { to{transform:rotate(360deg)} }
-        @keyframes ck-fadein { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes ck-pop    { 0%{transform:scale(.75);opacity:0} 65%{transform:scale(1.06)} 100%{transform:scale(1);opacity:1} }
-      `}</style>
+    <div className="min-h-screen bg-[#F8F9FA] flex flex-col pt-6 pb-20 px-4 md:px-8 font-sans relative overflow-x-hidden">
 
-      <div style={{ minHeight: '100dvh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 24px 80px' }}>
+      {/* Dynamic Background Accents */}
+      <div className="absolute top-0 inset-x-0 h-[400px] bg-gradient-to-br from-indigo-50 via-white to-[#F8F9FA] pointer-events-none z-0" />
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-violet-400/10 blur-3xl rounded-full pointer-events-none z-0" />
 
-        {/* Logo */}
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 44, textDecoration: 'none' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ChartLine size={17} weight="bold" color="white" />
+      {/* Header Container */}
+      <div className="max-w-6xl w-full mx-auto relative z-10 flex items-center justify-between mb-8 md:mb-12">
+        <Link href="/" className="flex items-center group">
+          <div className="relative transition-transform group-hover:scale-105">
+            <Image 
+              src="/logo.png" 
+              alt="Nortfy" 
+              width={120} 
+              height={38} 
+              className="object-contain h-7 w-auto"
+              priority
+            />
           </div>
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-0.01em' }}>Portfolio Manager</span>
         </Link>
+        <Link href="/planos" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-full text-[13px] font-bold text-gray-500 hover:text-gray-900 shadow-sm transition-colors">
+          <ArrowLeft size={14} /> Retornar
+        </Link>
+      </div>
 
-        <Steps success={success} />
+      {/* Main Grid Checkout Layout */}
+      {!success ? (
+        <div className="max-w-6xl w-full mx-auto relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
-        {/* ── Card container ── */}
-        <div className="card" style={{ width: '100%', maxWidth: 460, padding: 0, overflow: 'hidden' }}>
+          {/* LEFT: Order Summary (Stacks TOP on mobile) */}
+          <div className="order-1 lg:order-none lg:col-span-4 flex flex-col gap-6">
+            <div className="bg-white/70 backdrop-blur-2xl border border-gray-100 shadow-[0_8px_32px_-8px_rgba(79,70,229,0.06)] rounded-[24px] p-6 sm:p-8">
+              <h2 className="text-[16px] font-bold tracking-tight text-gray-900 mb-6 flex items-center gap-2">
+                Resumo da Assinatura
+              </h2>
 
-          {/* Header */}
-          {!success && (
-            <div style={{ padding: '18px 28px', borderBottom: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>Pagamento</div>
-                <div style={{ fontSize: 13, color: 'var(--t3)', marginTop: 1 }}>
-                  Plano Premium · <strong style={{ color: 'var(--t2)' }}>R$ 29,90/mês</strong>
+              <div className="flex justify-between items-start pb-5 border-b border-gray-100">
+                <div>
+                  <div className="text-[15px] font-bold text-gray-900 leading-tight">Plano Premium</div>
+                  <div className="text-[13px] font-medium text-gray-500 mt-1 max-w-[200px] leading-relaxed">
+                    Acesso absoluto ao terminal de rebalanceamentos e analytics.
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-[16px] font-bold text-gray-900 tracking-tight">R$ 29,90</div>
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">/ano</div>
                 </div>
               </div>
-              {/* Timer only for Pix */}
-              {tab === 'pix' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: timerColor, fontFamily: 'var(--font-mono), monospace', transition: 'color 0.3s' }}>
-                  <Timer size={14}
-                    weight={remaining < 120 && pixStage === 'ready' ? 'fill' : 'regular'}
-                    style={{ animation: remaining < 60 && pixStage === 'ready' ? 'ck-pulse 0.9s ease-in-out infinite' : 'none' }}
-                  />
-                  {pixStage === 'loading' || pixStage === 'error' ? '--:--' : pixStage === 'timeout' ? 'Expirado' : fmt(remaining)}
+
+              <div className="py-5 border-b border-gray-100 flex flex-col gap-3">
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-gray-500 font-medium">Subtotal</span>
+                  <span className="font-mono font-bold text-gray-700">R$ 29,90</span>
+                </div>
+                <div className="flex justify-between items-center text-[13px]">
+                  <span className="text-gray-500 font-medium">Taxas (0%)</span>
+                  <span className="font-mono font-bold text-gray-400">R$ 0,00</span>
+                </div>
+              </div>
+
+              <div className="pt-5 flex justify-between items-center">
+                <span className="text-[14px] font-bold text-gray-900 uppercase tracking-widest">Total</span>
+                <span className="font-mono text-[24px] font-black text-indigo-600 tracking-tighter">
+                  R$ 29,90
+                </span>
+              </div>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="bg-white/50 backdrop-blur-md border border-gray-100 rounded-[20px] p-5 flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={16} className="text-emerald-600" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <div className="text-[13px] font-bold text-gray-900">Checkout 100% Seguro</div>
+                  <div className="text-[12px] font-medium text-gray-500 leading-snug">Seus dados blindados com SSL Criptografia 256-bit.</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+                  <Lock size={16} className="text-indigo-600" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <div className="text-[13px] font-bold text-gray-900">Regulação PCI-DSS</div>
+                  <div className="text-[12px] font-medium text-gray-500 leading-snug">Roteamento auditado por MercadoPago Ltda.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Payment Panel */}
+          <div className="order-2 lg:order-none lg:col-span-8">
+            <div className="bg-white border border-gray-100 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.06)] rounded-[24px] overflow-hidden min-h-[500px] flex flex-col relative z-20">
+
+              {/* Tab Switcher Headers */}
+              {cardStage !== 'pending' && (
+                <div className="flex p-2 bg-gray-50/80 border-b border-gray-100">
+                  {([
+                    { key: 'pix', label: 'Transação PIX', Icon: QrCode },
+                    { key: 'card', label: 'Cartão de Crédito', Icon: CreditCard },
+                  ] as const).map(({ key, label, Icon }) => {
+                    const isActive = tab === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => switchTab(key)}
+                        className={`flex-1 relative flex items-center justify-center gap-2 py-4 rounded-[16px] text-[14px] font-bold cursor-pointer transition-colors duration-200 z-10 ${isActive ? 'text-indigo-700' : 'text-gray-500 hover:text-gray-900'
+                          }`}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="checkout-tab"
+                            className="absolute inset-0 bg-white shadow-sm border border-gray-200 rounded-[16px] -z-10"
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                          />
+                        )}
+                        <Icon size={16} strokeWidth={2.5} className={isActive ? 'text-indigo-600' : 'text-gray-400'} />
+                        <span className="tracking-tight">{label}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Tab bar */}
-          {!success && cardStage !== 'pending' && (
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-2)' }}>
-              {([
-                { key: 'pix',  label: 'Pix',   Icon: QrCode     },
-                { key: 'card', label: 'Cartão', Icon: CreditCard },
-              ] as const).map(({ key, label, Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => switchTab(key)}
-                  style={{
-                    flex: 1,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                    padding: '13px 0',
-                    background: 'transparent', border: 'none',
-                    borderBottom: tab === key ? '2px solid var(--blue)' : '2px solid transparent',
-                    color: tab === key ? 'var(--blue)' : 'var(--t3)',
-                    fontSize: 13, fontWeight: tab === key ? 600 : 500,
-                    cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                    marginBottom: -1,
-                  }}
-                >
-                  <Icon size={14} weight={tab === key ? 'fill' : 'regular'} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Body */}
-          <div style={{ padding: '28px 28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-
-            {/* ── SUCCESS (shared between pix and card) ── */}
-            {success && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '28px 0', animation: 'ck-fadein 0.3s ease' }}>
-                <div style={{ width: 70, height: 70, borderRadius: '50%', background: 'var(--green-subtle)', border: '2px solid var(--green-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'ck-pop 0.45s ease' }}>
-                  <CheckCircle size={36} weight="fill" style={{ color: 'var(--green)' }} />
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)', marginBottom: 6 }}>Pagamento confirmado!</div>
-                  <div style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.6 }}>
-                    Sua conta Premium foi ativada com sucesso.<br />Redirecionando para o dashboard…
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4 }}>
-                  <Spinner />
-                  <span style={{ fontSize: 12, color: 'var(--t4)' }}>Redirecionando…</span>
-                </div>
-              </div>
-            )}
-
-            {/* ══════════════ PIX TAB ══════════════ */}
-            {!success && tab === 'pix' && (
-              <>
-                {/* Loading skeleton */}
-                {pixStage === 'loading' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, padding: '16px 0', width: '100%', animation: 'ck-fadein 0.25s ease' }}>
-                    <div style={{ width: 204, height: 204, background: 'var(--bg-subtle)', border: '1px solid var(--border-2)', borderRadius: 'var(--r)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <QrCode size={52} style={{ color: 'var(--border)', animation: 'ck-pulse 1.4s ease-in-out infinite' }} />
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--t3)', fontSize: 13 }}>
-                      <Spinner /> Gerando QR Code…
-                    </div>
-                    {[82, 100, 72].map((w, i) => (
-                      <div key={i} style={{ width: `${w}%`, height: 10, background: 'var(--border-2)', borderRadius: 99, animation: 'ck-pulse 1.6s ease-in-out infinite', animationDelay: `${i * 0.14}s` }} />
-                    ))}
-                  </div>
-                )}
-
-                {/* QR ready */}
-                {pixStage === 'ready' && pixData && (
-                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, animation: 'ck-fadein 0.3s ease' }}>
-                    <div style={{ padding: 12, background: 'white', borderRadius: 'var(--r)', border: '1px solid var(--border)', boxShadow: 'var(--s1)' }}>
-                      <img src={`data:image/jpeg;base64,${pixData.qr_code_base64}`} alt="QR Code Pix" width={200} height={200} style={{ display: 'block', borderRadius: 4 }} />
-                    </div>
-                    <p style={{ fontSize: 13, color: 'var(--t3)', textAlign: 'center', lineHeight: 1.6, margin: 0 }}>
-                      Abra o app do seu banco, escolha <strong style={{ color: 'var(--t2)', fontWeight: 600 }}>Pix</strong> e escaneie o QR Code ou copie o código abaixo.
-                    </p>
-
-                    {/* Copy/paste */}
-                    <div style={{ width: '100%' }}>
-                      <div className="label" style={{ marginBottom: 6 }}>Pix Copia e Cola</div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <div style={{ flex: 1, padding: '9px 12px', background: 'var(--bg-subtle)', border: '1px solid var(--border)', borderRadius: 'var(--r)', fontSize: 11, fontFamily: 'var(--font-mono), monospace', color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', userSelect: 'all', cursor: 'text' }}>
-                          {pixData.qr_code}
-                        </div>
-                        <button
-                          onClick={copyCode}
-                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '9px 14px', background: copied ? 'var(--green-subtle)' : 'var(--surface)', border: `1px solid ${copied ? 'var(--green-border)' : 'var(--border)'}`, borderRadius: 'var(--r)', fontSize: 12, fontWeight: 600, color: copied ? 'var(--green-text)' : 'var(--t2)', cursor: 'pointer', transition: 'all 0.18s', fontFamily: 'inherit', flexShrink: 0, whiteSpace: 'nowrap' }}
-                        >
-                          {copied ? <><CheckCircle size={13} weight="fill" />Copiado!</> : <><Copy size={13} />Copiar</>}
-                        </button>
-                      </div>
-                    </div>
-
-                    <a href={pixData.ticket_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 500, color: 'var(--t4)', textDecoration: 'none', transition: 'color 0.12s' }} onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t2)'; }} onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t4)'; }}>
-                      <ArrowSquareOut size={13} /> Abrir no Mercado Pago
-                    </a>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px', background: 'var(--blue-subtle)', border: '1px solid rgba(59,91,219,0.15)', borderRadius: 99, fontSize: 12, fontWeight: 500, color: 'var(--blue-text)' }}>
-                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--blue)', flexShrink: 0, animation: 'ck-pulse 1.6s ease-in-out infinite' }} />
-                      Aguardando confirmação do pagamento…
-                    </div>
-                  </div>
-                )}
-
-                {/* Timeout */}
-                {pixStage === 'timeout' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '20px 0', animation: 'ck-fadein 0.3s ease' }}>
-                    <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--amber-subtle)', border: '1.5px solid var(--amber-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Timer size={28} weight="fill" style={{ color: 'var(--amber)' }} />
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>QR Code expirado</div>
-                      <div style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.6 }}>O código Pix expira em 30 minutos por segurança.<br />Gere um novo para continuar.</div>
-                    </div>
-                    <button onClick={generateQR} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 22px', background: 'var(--blue)', border: 'none', borderRadius: 'var(--r)', fontSize: 13.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.12s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-                      <ArrowClockwise size={14} weight="bold" /> Gerar novo QR Code
-                    </button>
-                  </div>
-                )}
-
-                {/* Error */}
-                {pixStage === 'error' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '20px 0', animation: 'ck-fadein 0.3s ease' }}>
-                    <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--red-subtle)', border: '1.5px solid var(--red-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Warning size={28} weight="fill" style={{ color: 'var(--red)' }} />
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>Falha ao gerar QR Code</div>
-                      {pixError && <div style={{ fontSize: 11.5, color: 'var(--t4)', fontFamily: 'var(--font-mono), monospace', background: 'var(--bg-subtle)', border: '1px solid var(--border-2)', borderRadius: 'var(--r-sm)', padding: '8px 12px', marginTop: 6, wordBreak: 'break-all' }}>{pixError}</div>}
-                    </div>
-                    <button onClick={generateQR} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 22px', background: 'var(--blue)', border: 'none', borderRadius: 'var(--r)', fontSize: 13.5, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.12s' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
-                      <ArrowClockwise size={14} weight="bold" /> Tentar novamente
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* ══════════════ CARD TAB ══════════════ */}
-            {cardBoot && !success && (
-              <div style={{ display: tab === 'card' ? 'block' : 'none', width: '100%' }}>
-
-                {/* ── Pending state (payment under anti-fraud review) ── */}
-                {cardStage === 'pending' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '24px 0', animation: 'ck-fadein 0.3s ease' }}>
-                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--amber-subtle)', border: '1.5px solid var(--amber-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Hourglass size={30} weight="fill" style={{ color: 'var(--amber)', animation: 'ck-pulse 2s ease-in-out infinite' }} />
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)', marginBottom: 6 }}>Pagamento em análise</div>
-                      <div style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.65, maxWidth: 300 }}>
-                        Seu pagamento está sendo revisado pelo banco.<br />
-                        Isso pode levar alguns minutos. Você pode fechar esta página — vamos notificar quando confirmar.
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px', background: 'rgba(217,119,6,0.08)', border: '1px solid var(--amber-border)', borderRadius: 99, fontSize: 12, fontWeight: 500, color: 'var(--amber-text)' }}>
-                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--amber)', flexShrink: 0, animation: 'ck-pulse 1.6s ease-in-out infinite' }} />
-                      Verificando confirmação do pagamento…
-                    </div>
-                    <button onClick={() => router.replace('/dashboard')} style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', transition: 'color 0.12s' }} onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t1)'; }} onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t3)'; }}>
-                      Ir para o dashboard enquanto aguardo
-                    </button>
-                  </div>
-                )}
-
-                {/* ── Form area (idle / submitting / rejected / error) ── */}
-                <div style={{ display: cardStage !== 'pending' ? 'block' : 'none' }}>
-
-                  {/* Rejection / error banner — shown above the form */}
-                  {(cardStage === 'rejected' || cardStage === 'error') && (
-                    <div style={{ marginBottom: 20, animation: 'ck-fadein 0.2s ease' }}>
-                      <div style={{ padding: '12px 14px', background: 'var(--red-subtle)', border: '1px solid var(--red-border)', borderRadius: 'var(--r)', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                        <Warning size={15} weight="fill" style={{ color: 'var(--red)', flexShrink: 0, marginTop: 1 }} />
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--red-text)', marginBottom: 2 }}>
-                            {cardStage === 'rejected' ? 'Pagamento recusado' : 'Erro no pagamento'}
+              {/* Engine Container */}
+              <div className="flex-1 p-6 sm:p-10 lg:p-12 relative overflow-hidden flex flex-col items-center">
+                
+                  {/* ══════════════ PIX ENGINE ══════════════ */}
+                  <div style={{ display: tab === 'pix' && cardStage !== 'pending' ? 'block' : 'none', width: '100%' }}>
+                    <motion.div
+                      key="pix-tab"
+                      initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.2 }}
+                      className="w-full max-w-[400px] mx-auto flex flex-col items-center"
+                    >
+                      {/* Loading block */}
+                      {pixStage === 'loading' && (
+                        <div className="flex flex-col items-center gap-5 w-full py-8 text-center text-gray-500">
+                          <div className="w-[200px] h-[200px] rounded-[20px] bg-indigo-50/50 border border-indigo-100 flex items-center justify-center">
+                            <QrCode size={48} className="text-indigo-300 animate-pulse" />
                           </div>
-                          <div style={{ fontSize: 12, color: 'var(--red-text)', opacity: 0.85, lineHeight: 1.45 }}>
-                            {cardError ?? 'Verifique os dados do cartão e tente novamente.'}
+                          <span className="text-[14px] font-bold tracking-tight text-gray-400">Sintetizando Chaves Criptográficas...</span>
+                        </div>
+                      )}
+
+                      {/* Ready (QR Placed) */}
+                      {pixStage === 'ready' && pixData && (
+                        <div className="flex flex-col items-center w-full gap-5">
+                          {/* Top Timer */}
+                          <div className={`px-4 py-2 rounded-full border flex items-center gap-2 text-[12px] font-bold tracking-widest uppercase transition-colors duration-300 ${remaining < 60 ? 'bg-red-50 border-red-200 text-red-600' :
+                            remaining < 180 ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-gray-50 border-gray-200 text-gray-500'
+                            }`}>
+                            <Timer size={14} className={remaining < 60 ? 'animate-pulse' : ''} />
+                            Vence em {fmt(remaining)}
+                          </div>
+
+                          <div className="p-3 bg-white border border-gray-200 shadow-md rounded-[20px] shrink-0 hover:shadow-lg transition-transform hover:scale-105 duration-300">
+                            <img src={`data:image/jpeg;base64,${pixData.qr_code_base64}`} alt="QR Code Pix" className="w-[220px] h-[220px] rounded-[10px] block" />
+                          </div>
+
+                          <p className="text-[14px] font-medium text-gray-500 text-center leading-relaxed">
+                            Abra o app do seu banco preferido e escaneie a matriz, ou utilize o hash dinâmico abaixo:
+                          </p>
+
+                          {/* Copia e Cola */}
+                          <div className="w-full mt-2">
+                            <div className="flex bg-gray-50 border border-gray-200 rounded-[12px] p-1 shadow-inner h-[50px]">
+                              <div className="flex-1 px-3 flex items-center overflow-hidden">
+                                <span className="font-mono text-[11px] font-medium text-gray-400 truncate tracking-tighter cursor-text select-all">
+                                  {pixData.qr_code}
+                                </span>
+                              </div>
+                              <button onClick={copyCode} className={`h-full px-5 flex items-center gap-1.5 rounded-[8px] text-[13px] font-bold border-none cursor-pointer transition-all shrink-0 ${copied ? 'bg-emerald-500 text-white shadow-[0_2px_10px_rgba(16,185,129,0.3)]' : 'bg-white text-gray-700 shadow-sm hover:shadow-md hover:text-indigo-600'
+                                }`}>
+                                {copied ? <><CheckCircle size={15} /> Copiado</> : <><Copy size={15} /> Copiar Restante</>}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 px-5 py-3 rounded-full bg-emerald-50 border border-emerald-100 flex items-center gap-2">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span className="text-[12px] font-bold text-emerald-700 tracking-tight">Ouvindo liquidação em tempo-real...</span>
                           </div>
                         </div>
-                      </div>
-                      <button onClick={() => { setCardStage('idle'); setCardError(null); }} style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        Tentar com outro cartão →
-                      </button>
-                    </div>
-                  )}
+                      )}
 
-                  <div style={{ position: 'relative' }}>
-
-                    {/* Submitting overlay */}
-                    {cardStage === 'submitting' && (
-                      <div style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(2px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, borderRadius: 'var(--r)' }}>
-                        <Spinner size={20} />
-                        <span style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500 }}>Processando pagamento…</span>
-                      </div>
-                    )}
-
-                    {/* Skeleton shown while brick initializes */}
-                    {!cardRdy && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        {[20, 44, 44, 44, 44, 44].map((h, i) => (
-                          <div key={i} style={{ width: i === 2 ? '60%' : '100%', height: h, background: 'var(--bg-subtle)', border: '1px solid var(--border-2)', borderRadius: 'var(--r)', animation: 'ck-pulse 1.5s ease-in-out infinite', animationDelay: `${i * 0.1}s` }} />
-                        ))}
-                      </div>
-                    )}
-
-                    {/* The brick itself */}
-                    <div style={{ display: cardRdy ? 'block' : 'none' }}>
-                      <CardBrick
-                        onReady={handleCardReady}
-                        onError={handleCardError}
-                        onSubmit={handleCardSubmit}
-                      />
-                    </div>
+                      {/* Timeout / Error states */}
+                      {(pixStage === 'timeout' || pixStage === 'error') && (
+                        <div className="flex flex-col items-center justify-center gap-4 py-8 text-center px-4">
+                          <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
+                            <AlertCircle size={24} className="text-red-500" />
+                          </div>
+                          <span className="text-[16px] font-bold text-gray-900 tracking-tight">{pixStage === 'timeout' ? 'Token Expirado' : 'Queda no Roteamento'}</span>
+                          <span className="text-[14px] text-gray-500 max-w-[250px] leading-relaxed">
+                            {pixStage === 'timeout' ? 'Os tokens Pix de conciliação tem validade de 30m. Pressione o botão para sintetizar novamente.' : pixError}
+                          </span>
+                          <button onClick={generateQR} className="mt-4 px-6 py-3 bg-gray-900 text-white rounded-full text-[13px] font-bold hover:bg-gray-800 transition-colors">
+                            Renovar Ciclo de Cobrança
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
                   </div>
-                </div>
+
+                  {/* ══════════════ CARD ENGINE ══════════════ */}
+                  <div style={{ display: tab === 'card' && cardStage !== 'pending' ? 'block' : 'none', width: '100%' }}>
+                    <motion.div
+                      key="card-tab"
+                      initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.2 }}
+                      className="w-full max-w-[400px] mx-auto flex flex-col"
+                    >
+                      {/* Submitting Glass overlay */}
+                      {cardStage === 'submitting' && (
+                        <div className="absolute inset-0 z-30 bg-white/70 backdrop-blur-md flex flex-col items-center justify-center rounded-[16px] border border-gray-100">
+                          <div className="w-12 h-12 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin mb-4" />
+                          <span className="text-[14px] font-bold text-gray-900 tracking-tight">Verificando Bin com Emissor...</span>
+                        </div>
+                      )}
+
+                      {/* Error State above Brick */}
+                      {(cardStage === 'rejected' || cardStage === 'error') && (
+                        <div className="mb-6 px-4 py-3 bg-red-50 border border-red-100 rounded-[12px] flex flex-col gap-2">
+                          <div className="flex items-center gap-2 text-red-700 font-bold text-[14px]">
+                            <AlertCircle size={15} /> {cardStage === 'rejected' ? 'Adquirência Rejeitada' : 'Falha na Validação'}
+                          </div>
+                          <p className="text-[13px] text-red-600/90 leading-snug">{cardError}</p>
+                          <button onClick={() => { setCardStage('idle'); setCardError(null); }} className="text-left mt-1 text-[12px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
+                            Forçar nova tentativa →
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Brick Loader logic */}
+                      {!cardRdy && cardBoot && (
+                        <div className="flex flex-col gap-4 opacity-50 p-2">
+                          {[45, 45, 45, 45, 45].map((h, i) => (
+                            <div key={i} className={`h-[${h}px] bg-gray-100 rounded-[8px] animate-pulse`} />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* MercadoPago Iframe Target */}
+                      <div className={`transition-opacity duration-500 ${cardRdy ? 'opacity-100' : 'opacity-0'} [&_.mp-card-payment-form]:p-0`}>
+                        {cardBoot && (
+                          <CardBrick
+                            onReady={handleCardReady}
+                            onError={handleCardError}
+                            onSubmit={stableSubmit}
+                          />
+                        )}
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* ══════════════ PENDING STATE ══════════════ */}
+                  <AnimatePresence>
+                    {cardStage === 'pending' && (
+                      <motion.div
+                        key="pending-fallback"
+                        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                        className="absolute inset-0 z-40 bg-white flex flex-col items-center pt-16 px-6 text-center"
+                      >
+                        <div className="w-20 h-20 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center mb-6">
+                          <Hourglass size={32} className="text-amber-500 animate-bounce" strokeWidth={2} />
+                        </div>
+                        <h2 className="text-[20px] font-bold text-gray-900 tracking-tight mb-2">Resistência Anti-Fraude</h2>
+                        <p className="text-[14px] text-gray-500 leading-relaxed max-w-[320px] mb-8">
+                          Seu fluxo entrou na malha de revisão manual da adquirente. Fique tranquilo, estamos sondando o provedor até que a transação caia no extrato.
+                        </p>
+
+                        <div className="px-5 py-2.5 rounded-full bg-amber-50 border border-amber-100 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                          <span className="text-[12px] font-bold text-amber-700 tracking-tight">Ouvindo resposta do Banco Central...</span>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
               </div>
-            )}
+
+            </div>
           </div>
 
-          {/* Footer */}
-          {!success && (
-            <div style={{ padding: '12px 28px', borderTop: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, color: 'var(--t4)' }}>
-              <ShieldCheck size={13} style={{ color: 'var(--green)', flexShrink: 0 }} />
-              <span>Pagamento seguro processado por</span>
-              <span style={{ fontWeight: 700, color: 'var(--t3)' }}>Mercado Pago</span>
-            </div>
-          )}
         </div>
-
-        {/* Back */}
-        {!success && cardStage !== 'pending' && (
-          <Link href="/planos" style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 28, fontSize: 13, color: 'var(--t4)', textDecoration: 'none', transition: 'color 0.12s' }} onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--t2)'; }} onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--t4)'; }}>
-            <ArrowLeft size={13} /> Voltar para planos
-          </Link>
-        )}
-      </div>
-    </>
+      ) : (
+        /* ── GLOBAL SUCCESS COMPONENT ── */
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="max-w-xl w-full mx-auto relative z-20 mt-10 md:mt-20 flex flex-col items-center bg-white/80 backdrop-blur-3xl border border-white rounded-[32px] p-10 shadow-[0_20px_60px_-15px_rgba(16,185,129,0.2)] text-center"
+        >
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-emerald-400 blur-xl opacity-30 animate-pulse" />
+            <div className="relative w-24 h-24 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center shadow-lg mb-8 border-4 border-white">
+              <CheckCircle size={40} className="text-white" strokeWidth={3} />
+            </div>
+          </div>
+          <h1 className="text-[32px] font-bold tracking-tight text-gray-900 mb-2">Privilégios Elevados!</h1>
+          <p className="text-[15px] font-medium text-gray-500 mb-8 max-w-[300px] leading-relaxed">
+            Liquidação confirmada na base matricial. Preparando redirecionamento para o seu novo Dashboard Premium.
+          </p>
+          <div className="flex items-center gap-2 text-indigo-600">
+            <div className="w-5 h-5 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin"></div>
+            <span className="text-[13px] font-bold tracking-tight">Configurando terminal...</span>
+          </div>
+        </motion.div>
+      )}
+    </div>
   );
 }
