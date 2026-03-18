@@ -152,11 +152,11 @@ function PortfolioVisual() {
 
 /* ─── The Pulse Visual ──────────────────────────────────────── */
 function ThePulse() {
-  const pulseAssets = [
-    { name: 'BTC', drift: '+3.2%', action: 'Vender', actionColor: 'text-red-500 bg-red-50', pct: 85 },
-    { name: 'ETH', drift: '-2.8%', action: 'Comprar', actionColor: 'text-emerald-600 bg-emerald-50', pct: 62 },
-    { name: 'SOL', drift: '+1.1%', action: 'Manter', actionColor: 'text-amber-600 bg-amber-50', pct: 45 },
-    { name: 'ADA', drift: '-1.5%', action: 'Comprar', actionColor: 'text-emerald-600 bg-emerald-50', pct: 30 },
+const pulseAssets = [
+    { name: 'BTC', icon: 'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color/btc.svg', drift: '+3.2%', action: 'Vender', actionColor: 'text-red-500 bg-red-50', pct: 85 },
+    { name: 'ETH', icon: 'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color/eth.svg', drift: '-2.8%', action: 'Comprar', actionColor: 'text-emerald-600 bg-emerald-50', pct: 62 },
+    { name: 'SOL', icon: 'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color/sol.svg', drift: '+1.1%', action: 'Manter', actionColor: 'text-amber-600 bg-amber-50', pct: 45 },
+    { name: 'ADA', icon: 'https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/svg/color/ada.svg', drift: '-1.5%', action: 'Comprar', actionColor: 'text-emerald-600 bg-emerald-50', pct: 30 },
   ];
 
   return (
@@ -185,9 +185,14 @@ function ThePulse() {
             className="flex items-center justify-between px-6 sm:px-8 py-4 hover:bg-gray-50/50 transition-colors"
           >
             <div className="flex items-center gap-4 flex-1">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center border border-gray-100">
-                <span className="text-[13px] font-bold text-[#121212]">{asset.name.slice(0, 2)}</span>
-              </div>
+             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center border border-gray-100 overflow-hidden p-2">
+  {/* Usando a tag img padrão para evitar configuração de domínios externos no next/image neste momento */}
+  <img 
+    src={asset.icon} 
+    alt={`Logo ${asset.name}`} 
+    className="w-full h-full object-contain" 
+  />
+</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[14px] font-semibold text-[#121212]">{asset.name}</span>
