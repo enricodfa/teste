@@ -15,18 +15,10 @@ const FOOTER_SECTIONS = [
     ],
   },
   {
-    title: 'Empresa',
-    links: [
-      { label: 'Sobre nós', href: '#' },
-      { label: 'Blog', href: '#' },
-      { label: 'Contato', href: '#' },
-    ],
-  },
-  {
     title: 'Legal',
     links: [
-      { label: 'Termos de Uso', href: '#' },
-      { label: 'Privacidade', href: '#' },
+      { label: 'Termos de Uso', href: '/termos' },
+      { label: 'Política de Privacidade', href: '/privacidade' },
     ],
   },
 ];
@@ -50,7 +42,7 @@ export default function Footer() {
       <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
 
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pt-20 pb-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-16">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 mb-16">
           
           <div className="col-span-2">
             <Link href="/" className="flex items-center group mb-6">

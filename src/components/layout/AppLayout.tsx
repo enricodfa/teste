@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import SupportModal from '../modals/SupportModal';
 
 interface AppLayoutProps {
   children:   React.ReactNode;
@@ -14,6 +15,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const pathname = usePathname();
 
   // Close sidebar on route change automatically for mobile UX
@@ -23,7 +25,11 @@ export default function AppLayout({ children, title, subtitle, actions }: AppLay
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA] relative">
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+        onOpenSupport={() => setSupportOpen(true)}
+      />
 
       <div className="flex-1 md:ml-[240px] flex flex-col min-h-screen w-full min-w-0 transition-all duration-300">
         <Header 
@@ -45,6 +51,8 @@ export default function AppLayout({ children, title, subtitle, actions }: AppLay
           aria-hidden="true"
         />
       )}
+
+      <SupportModal open={supportOpen} onClose={() => setSupportOpen(false)} />
     </div>
   );
 }

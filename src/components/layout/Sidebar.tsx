@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -62,9 +63,10 @@ function NavItem({
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
+  onOpenSupport?: () => void;
 }
 
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose, onOpenSupport }: SidebarProps) {
   const pathname = usePathname();
   const { user, signOut, isPremium } = useAuth();
 
@@ -125,6 +127,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Help */}
       <div className="border-t border-gray-100 px-3 md:px-2.5 py-3 md:py-2">
         <button
+          onClick={onOpenSupport}
           className="flex items-center gap-2.5 w-full px-3 py-2.5 md:py-2 rounded-[10px] text-[14px] md:text-[13.5px] font-semibold text-gray-500 bg-transparent border-none cursor-pointer transition-colors duration-100 hover:bg-gray-50 hover:text-gray-900"
         >
           <Question size={18} className="text-gray-400" />
