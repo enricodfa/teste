@@ -1,51 +1,34 @@
-# Nortfy — Frontend
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-![Nortfy Header](https://via.placeholder.com/1200x400/1e1e2f/ffffff?text=NORTFY+-+Frontend)
+## Getting Started
 
-Este é o repositório **Frontend** da [Nortfy](https://nortfy.com), a plataforma SaaS de rebalanceamento sistemático e inteligente de portfólios de criptomoedas através de lançamentos manuais.
+First, run the development server:
 
-## 🧰 Tech Stack
-- **Framework:** Next.js 13+ (App Router)
-- **Styling:** Tailwind CSS
-- **Animations:** Framer Motion
-- **Icons:** Lucide React & Phosphor Icons
-- **Pagamento:** SDK do Mercado Pago (`@mercadopago/sdk-react`)
-- **Gestão de Estado:** React Context API (`AuthContext`, `PortfolioContext`)
-
-## 🏗️ Estrutura de Diretórios
-- `/src/app/` — Páginas principais usando a topologia App Router do Next.js. Contém o funil público (`page.tsx`, `planos`, `servicos`, `termos`), autenticação (`login`, `auth/callback`), e áreas logadas (`dashboard`, `rebalance`, `operations`).
-- `/src/components/` — Componentes reaproveitáveis separados por funcionalidade:
-  - `/landing` (Navbar e Footer públicos)
-  - `/layout` (AppLayout, Sidebar e Header do Dashboard)
-  - `/modals` (Modais utilitários como SupportModal)
-  - `/ui` (Elementos atômicos)
-- `/src/contexts/` — Gerenciadores globais de estado (Ex: Carrinho, Autenticação, Carteira selecionada cruzada via Context API).
-- `/src/services/` — Camada de ponte, hospedando arquivos `.ts` que fazem as chamadas HTTP via Fetch API ou Axios para o nosso `backend-main`.
-
-## 🚀 Como Executar Localmente
-
-**1. Instale as dependências**
-```bash
-npm install
-# ou
-yarn install
-```
-
-**2. Variáveis de Ambiente**
-Crie um arquivo `.env.local` na raiz e mapeie as variáveis públicas do Supabase e do MercadoPago, e a URL do seu backend local:
-```env
-NEXT_PUBLIC_SUPABASE_URL=sua_url_supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_key_publica
-NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY=sua_key_mercado_pago
-NEXT_PUBLIC_API_URL=http://localhost:5000 # url do seu backend node
-```
-
-**3. Inicie o Servidor de Desenvolvimento**
 ```bash
 npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
-Abra [http://localhost:3000](http://localhost:3000) no seu navegador. As rotas internas exigem que você crie primeiro uma conta e passe pela autenticação para acessar o painel administrativo.
 
-## 📐 Padrões Adotados (Code Guidelines)
-1. Nós operamos sob **Custódia Zero e Inserção Manual**: Todos os lançamentos visuais e descritivos nas páginas devem refletir a impossibilidade técnica de conectar uma Exchange ou API externa, evidenciando nossa segurança extrema.
-2. Uso do `'use client'` estritamente nas fronteiras interativas (framer-motion, event listeners). As views puras ou invólucros de SEO (`layout.tsx`) são Server Components.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

@@ -79,20 +79,20 @@ const CORE_SERVICES = [
 
 const FEATURES_GRID = [
   { icon: <Bell className="w-5 h-5" />, title: 'Alertas Inteligentes', desc: 'Notificações quando o drift ultrapassa as bandas configuradas.' },
-  { icon: <Shield className="w-5 h-5" />, title: 'Zero API de Terceiros', desc: 'Não conectamos em corretoras externas. Risco 100% mitigado.' },
-  { icon: <Clock className="w-5 h-5" />, title: 'Controle de Preços Global', desc: 'Cotação atualizada em tempo real para cálculo matemático do Drift.' },
-  { icon: <Wallet className="w-5 h-5" />, title: 'Carteiras Flexíveis', desc: 'Crie múltiplos portfólios no seu painel para acompanhar diferentes cestas.' },
-  { icon: <Lock className="w-5 h-5" />, title: 'Segurança Institucional', desc: 'Seus lançamentos protegidos em banco com RLS e Criptografia AES-256.' },
-  { icon: <Globe className="w-5 h-5" />, title: 'Tranquilidade Global', desc: 'Opere na exchange que quiser no mundo inteiro e consolide apenas os dados aqui.' },
-  { icon: <LineChart className="w-5 h-5" />, title: 'Histórico Completo', desc: 'Registro de todas as operações e relatórios imutáveis do seu patrimônio.' },
-  { icon: <Zap className="w-5 h-5" />, title: 'Setup em Minutos', desc: 'Faça os lançamentos de capital, defina alocações e comece imediatamente.' },
+  { icon: <Shield className="w-5 h-5" />, title: 'Segurança Read-Only', desc: 'API de leitura apenas. Zero acesso a movimentação de fundos.' },
+  { icon: <Clock className="w-5 h-5" />, title: 'Mercado 24/7', desc: 'Monitoramento contínuo — cripto não dorme, nós também não.' },
+  { icon: <Wallet className="w-5 h-5" />, title: 'Multi-Exchange', desc: 'Integração com Binance, Coinbase, Kraken, Bybit e mais.' },
+  { icon: <Lock className="w-5 h-5" />, title: 'Dados Criptografados', desc: 'Todas as chaves de API são armazenadas com criptografia AES-256.' },
+  { icon: <Globe className="w-5 h-5" />, title: 'API Aberta', desc: 'Acesse seus dados e integre com suas próprias ferramentas via REST API.' },
+  { icon: <LineChart className="w-5 h-5" />, title: 'Histórico Completo', desc: 'Registro de todas as operações e evolução do portfólio ao longo do tempo.' },
+  { icon: <Zap className="w-5 h-5" />, title: 'Setup em Minutos', desc: 'Conecte sua exchange, defina alocações e comece a rebalancear imediatamente.' },
 ];
 
 const PROCESS_STEPS = [
   {
     number: '01',
-    title: 'Registre',
-    description: 'Insira manualmente os seus ativos e saldos. Sem expor chaves ou logins das corretoras.',
+    title: 'Conecte',
+    description: 'Vincule sua exchange via API read-only. Suportamos as principais plataformas do mercado.',
     icon: <Wallet className="w-5 h-5" />,
   },
   {

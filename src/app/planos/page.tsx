@@ -23,48 +23,48 @@ import Footer from '@/components/landing/Footer';
 /* ─── Data ──────────────────────────────────────────────────── */
 const FREE_FEATURES = [
   '1 carteira',
-  'Até 5 ativos por carteira',
-  'Registro manual de operações (Compra/Venda)',
-  'Dashboard de Lucros e Perdas (PnL)',
-  'Acompanhamento de preços de mercado',
+  'Até 4 ativos',
+  'Análise de rebalanceamento',
+  'Histórico de 30 dias',
+  'Alertas manuais',
 ];
 
 const PREMIUM_FEATURES = [
-  'Carteiras e ativos ilimitados',
-  'Monitoramento de desvio (Portfolio Drift)',
-  'Gestão de Thresholds (Bandas de tolerância)',
-  'Avisos automáticos de rebalanceamento',
-  'Sugestão exata de compra/venda para reajuste',
-  'Histórico completo de rebalanceamentos',
+  'Carteiras ilimitadas',
+  'Ativos ilimitados',
+  'Análise em tempo real',
+  'Histórico completo',
+  'Alertas automáticos',
+  'Acesso à API',
+  'Suporte prioritário',
 ];
 
 const COMPARISON = [
   { feature: 'Carteiras', free: '1', premium: 'Ilimitadas' },
-  { feature: 'Ativos por carteira', free: 'Até 5', premium: 'Ilimitados' },
-  { feature: 'Dashboard de Lucro/Prejuízo', free: 'Básico', premium: 'Avançado' },
-  { feature: 'Monitoramento de Desvio (Drift)', free: '—', premium: 'Em tempo real' },
-  { feature: 'Gestão de Thresholds (Bandas)', free: '—', premium: 'Personalizável' },
-  { feature: 'Alertas de Rebalanceamento', free: '—', premium: 'Automáticos (Push/Email)' },
-  { feature: 'Cálculo de Rebalanceamento', free: '—', premium: 'Sugestões exatas de trade' },
+  { feature: 'Ativos por carteira', free: 'Até 4', premium: 'Ilimitados' },
+  { feature: 'Frequência de análise', free: 'Manual', premium: 'Tempo real' },
   { feature: 'Histórico', free: '30 dias', premium: 'Completo' },
+  { feature: 'Alertas', free: 'Manual', premium: 'Automáticos' },
+  { feature: 'API', free: '—', premium: 'Acesso total' },
+  { feature: 'Suporte', free: 'Comunidade', premium: 'Prioritário' },
 ];
 
 const FAQS = [
   {
-    q: 'O que exatamente o plano gratuito oferece?',
-    a: 'O plano Free funciona como um excelente rastreador de portfólio. Você pode registrar suas compras e vendas manualmente e acompanhar seus lucros e gráficos. Porém, a inteligência de rebalanceamento é exclusiva do Premium.',
+    q: 'Posso cancelar a qualquer momento?',
+    a: 'Sim, sem compromisso. Você pode cancelar o Premium quando quiser e continuará com acesso até o fim do período pago.',
   },
   {
-    q: 'Como funcionam os avisos de rebalanceamento do Premium?',
-    a: 'No Premium, você define sua alocação ideal e as bandas de tolerância (thresholds) para cada ativo. Se o Bitcoin, por exemplo, subir e ultrapassar o limite que você definiu, a Nortfy te avisa exatamente o quanto vender para voltar ao equilíbrio.',
+    q: 'O plano gratuito tem limitações de funcionalidade?',
+    a: 'O plano gratuito permite 1 carteira com até 4 ativos e análise manual. É ideal para começar a entender o rebalanceamento.',
   },
   {
-    q: 'Posso cancelar o Premium a qualquer momento?',
-    a: 'Sim, sem compromisso ou pegadinhas. Você pode cancelar sua assinatura quando quiser e continuará com acesso aos recursos Premium até o fim do ciclo de faturamento atual.',
+    q: 'Como funciona a cobrança?',
+    a: 'A cobrança é mensal via cartão de crédito ou Pix. Você recebe um recibo por e-mail a cada pagamento.',
   },
   {
     q: 'Vocês têm acesso aos meus fundos?',
-    a: 'Não, de forma alguma. A plataforma é uma ferramenta analítica. O controle do seu dinheiro e a execução final das ordens nas exchanges continuam 100% com você.',
+    a: 'Não. A integração com exchanges é apenas de leitura (read-only). Nunca temos acesso a saques ou movimentações.',
   },
 ];
 

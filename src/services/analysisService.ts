@@ -20,8 +20,6 @@ export interface Signal {
   realizedPnl:    number;
   unrealizedPnl:  number;
   totalPnl:       number;
-  logo?:          string;
-  coingecko_id?:  string;
 }
 
 export interface ActionPlanItem {
